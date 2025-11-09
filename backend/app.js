@@ -19,7 +19,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', userRoutes);
 app.use('/api/roles', rolRoutes);
 app.use('/api/permisos', permisoRoutes);
-app.use('/api/habitaciones', habitacionRoutes);
+app.use('/api/habitacion', habitacionRoutes);
 
 
 const PORT = process.env.PORT || 4000;

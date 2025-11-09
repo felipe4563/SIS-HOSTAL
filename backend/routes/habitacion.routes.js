@@ -3,14 +3,20 @@ import { authMiddleware } from '../middlewares/authMiddleware.js';
 import { checkPermission } from '../middlewares/checkPermission.js';
 import {
   listarHabitaciones,
-  crearHabitacion,
-  editarHabitacion
+  obtenerHabitacion,
+  crearHabitacion,  // ✅ Asegúrate de importarla
+  editarHabitacion,
+  eliminarHabitacion,
+  cambiarEstadoHabitacion
 } from '../controllers/habitacion.controller.js';
 
 const router = express.Router();
 
 router.get('/', authMiddleware, checkPermission('ver_habitaciones'), listarHabitaciones);
-router.post('/', authMiddleware, checkPermission('crear_habitacion'), crearHabitacion);
-router.put('/:id', authMiddleware, checkPermission('editar_habitacion'), editarHabitacion);
+router.get('/:id', authMiddleware, checkPermission('ver_habitaciones'), obtenerHabitacion);
+router.post('/', authMiddleware, checkPermission('crear_habitaciones'), crearHabitacion); // ✅ Ruta para CREAR
+router.put('/:id', authMiddleware, checkPermission('editar_habitaciones'), editarHabitacion);
+router.delete('/:id', authMiddleware, checkPermission('eliminar_habitaciones'), eliminarHabitacion);
+router.patch('/:id/estado', authMiddleware, checkPermission('editar_habitaciones'), cambiarEstadoHabitacion);
 
 export default router;
