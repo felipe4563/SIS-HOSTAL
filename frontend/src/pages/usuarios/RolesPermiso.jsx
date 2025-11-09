@@ -1,6 +1,6 @@
 import { useState } from "react";
-import RolesList from "./roles/RolesList";
-import AsignarPermisos from "./roles/AsignarPermisos";
+import RolesList from "../roles/RolesList";
+import AsignarPermisos from "../roles/AsignarPermisos";
 
 const Roles = () => {
   const [activeTab, setActiveTab] = useState("roles");

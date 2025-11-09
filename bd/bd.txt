@@ -176,11 +176,14 @@ MariaDB [bd_hostal]> describe usuario;
 | id_usuario     | int(11)      | NO   | PRI | NULL                | auto_increment |
 | nombre         | varchar(100) | NO   |     | NULL                |                |
 | apellido       | varchar(100) | NO   |     | NULL                |                |
+| ci             | varchar(20)  | YES  | UNI | NULL                |                |
 | correo         | varchar(100) | YES  | UNI | NULL                |                |
 | password       | varchar(255) | NO   |     | NULL                |                |
 | id_rol         | int(11)      | YES  | MUL | NULL                |                |
 | fecha_registro | datetime     | YES  |     | current_timestamp() |                |
 +----------------+--------------+------+-----+---------------------+----------------+
-7 rows in set (0.027 sec)
+8 rows in set (0.032 sec)
+
+MariaDB [bd_hostal]>
 
 MariaDB [bd_hostal]>
