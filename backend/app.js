@@ -21,6 +21,7 @@ app.use('/api/usuarios', userRoutes);
 app.use('/api/roles', rolRoutes);
 app.use('/api/permisos', permisoRoutes);
 app.use('/api/habitaciones', habitacionRoutes);
+app.use('/api/rol-permiso',rolPermisoRoutes)
 
 
 const PORT = process.env.PORT || 4000;
