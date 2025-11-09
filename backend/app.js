@@ -7,6 +7,7 @@ import userRoutes from './routes/user.routes.js';
 import rolRoutes from './routes/rol.routes.js';
 import permisoRoutes from './routes/permiso.routes.js';
 import habitacionRoutes from './routes/habitacion.routes.js';
+import rolPermisoRoutes from './routes/rolpermiso.route.js'
 
 dotenv.config();
 
@@ -19,7 +20,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', userRoutes);
 app.use('/api/roles', rolRoutes);
 app.use('/api/permisos', permisoRoutes);
-app.use('/api/habitacion', habitacionRoutes);
+app.use('/api/habitaciones', habitacionRoutes);
 
 
 const PORT = process.env.PORT || 4000;
