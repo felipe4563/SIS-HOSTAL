@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-// Datos de ejemplo CON IMÁGENES LOCALES
+// Datos de ejemplo
 const datosEjemplo = [
   {
     id_habitacion: 1,
@@ -14,13 +14,8 @@ const datosEjemplo = [
     imagenes: [
       {
         id_imagen: 1,
-        imagen_url: "/images/habitaciones/101-1.jpg",
+        imagen_url: "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=400&h=300&fit=crop",
         es_principal: true
-      },
-      {
-        id_imagen: 2,
-        imagen_url: "/images/habitaciones/101-2.jpg",
-        es_principal: false
       }
     ]
   },
@@ -36,29 +31,7 @@ const datosEjemplo = [
     imagenes: [
       {
         id_imagen: 3,
-        imagen_url: "/images/habitaciones/102-1.jpg",
-        es_principal: true
-      },
-      {
-        id_imagen: 4,
-        imagen_url: "/images/habitaciones/102-2.jpg",
-        es_principal: false
-      }
-    ]
-  },
-  {
-    id_habitacion: 3,
-    numero: "201",
-    id_tipo: 3,
-    tipo_habitacion: "Suite",
-    piso: 2,
-    precio_total: 600.00,
-    estado: "disponible",
-    descripcion: "Suite ejecutiva con sala separada",
-    imagenes: [
-      {
-        id_imagen: 5,
-        imagen_url: "/images/habitaciones/201-1.jpg",
+        imagen_url: "https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=400&h=300&fit=crop",
         es_principal: true
       }
     ]
@@ -93,13 +66,6 @@ const Lista = () => {
     }
   };
 
-  // Función para manejar errores de imagen
-  const manejarErrorImagen = (e) => {
-    console.log('Error cargando imagen:', e.target.src);
-    e.target.src = '/images/habitaciones/placeholder.jpg';
-    e.target.alt = 'Imagen no disponible';
-  };
-
   const GaleriaHabitacion = ({ habitacion }) => {
     const [imagenPrincipal, setImagenPrincipal] = useState(habitacion.imagenes?.[0]);
 
@@ -124,31 +90,8 @@ const Lista = () => {
             src={imagenPrincipal?.imagen_url} 
             alt={`Habitación ${habitacion.numero}`}
             className="w-full h-full object-cover"
-            onError={manejarErrorImagen}
           />
         </div>
-
-        {/* Miniaturas si hay más de una imagen */}
-        {habitacion.imagenes.length > 1 && (
-          <div className="grid grid-cols-4 gap-2">
-            {habitacion.imagenes.map((imagen, index) => (
-              <div 
-                key={imagen.id_imagen || index}
-                className={`border-2 rounded cursor-pointer overflow-hidden ${
-                  imagenPrincipal?.id_imagen === imagen.id_imagen ? 'border-blue-500' : 'border-gray-200'
-                }`}
-                onClick={() => setImagenPrincipal(imagen)}
-              >
-                <img 
-                  src={imagen.imagen_url} 
-                  alt={`Vista ${index + 1} - Habitación ${habitacion.numero}`}
-                  className="w-full h-16 object-cover"
-                  onError={manejarErrorImagen}
-                />
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     );
   };
@@ -170,7 +113,6 @@ const Lista = () => {
               src={imagenModal.imagen?.imagen_url} 
               alt={`Habitación ${imagenModal.habitacion?.numero}`}
               className="w-full h-auto max-h-96 object-contain"
-              onError={manejarErrorImagen}
             />
           </div>
           <div className="p-4 bg-white">
@@ -224,11 +166,8 @@ const Lista = () => {
                 <button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 px-3 rounded text-sm">
                   Reservar
                 </button>
-                <button 
-                  onClick={() => handleEliminar(habitacion.id_habitacion, habitacion.numero)}
-                  className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 px-3 rounded text-sm"
-                >
-                  Eliminar
+                <button className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 px-3 rounded text-sm">
+                  Detalles
                 </button>
               </div>
             </div>
