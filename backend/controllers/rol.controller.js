@@ -1,91 +1,104 @@
 import db from '../config/db.js';
 
-// ✅ Crear un nuevo rol
+/**
+ * Crear rol
+ */
 export const crearRol = async (req, res) => {
   const { nombre_rol, descripcion } = req.body;
 
   try {
-    // Verificar si ya existe un rol con el mismo nombre
-    const [existente] = await db.query(
-      'SELECT * FROM rol WHERE nombre_rol = ?',
-      [nombre_rol]
-    );
-    if (existente.length > 0)
-      return res.status(400).json({ message: 'El rol ya existe' });
-
-    // Insertar nuevo rol
-    await db.query(
-      'INSERT INTO rol (nombre_rol, descripcion) VALUES (?, ?)',
+    const [result] = await db.query(
+      `INSERT INTO rol (nombre_rol, descripcion) VALUES (?, ?)`,
       [nombre_rol, descripcion]
     );
-    res.status(201).json({ message: 'Rol creado correctamente' });
-  } catch (error) {
-    console.error('Error al crear rol:', error);
-    res.status(500).json({ message: 'Error en el servidor' });
+
+    res.status(201).json({ message: 'Rol creado', id_rol: result.insertId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error al crear rol' });
   }
 };
 
-// ✅ Obtener todos los roles
-export const obtenerRoles = async (req, res) => {
+/**
+ * Listar roles
+ */
+export const listarRoles = async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM rol');
+    const [rows] = await db.query(`SELECT * FROM rol`);
     res.json(rows);
-  } catch (error) {
-    console.error('Error al obtener roles:', error);
-    res.status(500).json({ message: 'Error en el servidor' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error al listar roles' });
   }
 };
 
-// ✅ Obtener un rol por ID
-export const obtenerRolPorId = async (req, res) => {
+/**
+ * Obtener rol por ID
+ */
+export const obtenerRol = async (req, res) => {
   const { id } = req.params;
-
   try {
-    const [rows] = await db.query('SELECT * FROM rol WHERE id_rol = ?', [id]);
-    if (rows.length === 0)
-      return res.status(404).json({ message: 'Rol no encontrado' });
-
+    const [rows] = await db.query(`SELECT * FROM rol WHERE id_rol = ?`, [id]);
+    if (rows.length === 0) return res.status(404).json({ message: 'Rol no encontrado' });
     res.json(rows[0]);
-  } catch (error) {
-    console.error('Error al obtener rol:', error);
-    res.status(500).json({ message: 'Error en el servidor' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error al obtener rol' });
   }
 };
 
-// ✅ Actualizar un rol
+/**
+ * Actualizar rol
+ */
 export const actualizarRol = async (req, res) => {
   const { id } = req.params;
   const { nombre_rol, descripcion } = req.body;
 
   try {
-    const [result] = await db.query(
-      'UPDATE rol SET nombre_rol = ?, descripcion = ? WHERE id_rol = ?',
+    await db.query(`UPDATE rol SET nombre_rol = ?, descripcion = ? WHERE id_rol = ?`,
       [nombre_rol, descripcion, id]
     );
-
-    if (result.affectedRows === 0)
-      return res.status(404).json({ message: 'Rol no encontrado' });
-
-    res.json({ message: 'Rol actualizado correctamente' });
-  } catch (error) {
-    console.error('Error al actualizar rol:', error);
-    res.status(500).json({ message: 'Error en el servidor' });
+    res.json({ message: 'Rol actualizado' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error al actualizar rol' });
   }
 };
 
-// ✅ Eliminar un rol
+/**
+ * Eliminar rol
+ */
 export const eliminarRol = async (req, res) => {
   const { id } = req.params;
+  try {
+    await db.query(`DELETE FROM rol WHERE id_rol = ?`, [id]);
+    res.json({ message: 'Rol eliminado' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error al eliminar rol' });
+  }
+};
+
+/**
+ * Asignar permisos a un rol
+ */
+export const asignarPermisos = async (req, res) => {
+  const { id } = req.params;
+  const { permisos = [] } = req.body; // array de id_permiso
 
   try {
-    const [result] = await db.query('DELETE FROM rol WHERE id_rol = ?', [id]);
+    // Primero eliminar permisos existentes
+    await db.query(`DELETE FROM rol_permiso WHERE id_rol = ?`, [id]);
 
-    if (result.affectedRows === 0)
-      return res.status(404).json({ message: 'Rol no encontrado' });
+    // Insertar permisos nuevos
+    const values = permisos.map(id_permiso => [id, id_permiso]);
+    if (values.length > 0) {
+      await db.query(`INSERT INTO rol_permiso (id_rol, id_permiso) VALUES ?`, [values]);
+    }
 
-    res.json({ message: 'Rol eliminado correctamente' });
-  } catch (error) {
-    console.error('Error al eliminar rol:', error);
-    res.status(500).json({ message: 'Error en el servidor' });
+    res.json({ message: 'Permisos asignados' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error al asignar permisos' });
   }
 };

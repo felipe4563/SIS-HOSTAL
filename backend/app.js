@@ -1,28 +1,28 @@
 import express from 'express';
-import cors from 'cors';
 import dotenv from 'dotenv';
-
 import authRoutes from './routes/auth.routes.js';
-import userRoutes from './routes/user.routes.js';
+import usuarioRoutes from './routes/user.routes.js';
 import rolRoutes from './routes/rol.routes.js';
-import permisoRoutes from './routes/permiso.routes.js';
-import habitacionRoutes from './routes/habitacion.routes.js';
-import rolPermisoRoutes from './routes/rolpermiso.route.js'
+import { authMiddleware } from './middlewares/authMiddleware.js';
+import { defineAbilitiesFor } from './config/abilities.js';
 
 dotenv.config();
-
 const app = express();
-app.use(cors());
+
 app.use(express.json());
+
+// Middleware para inicializar Ability CASL en cada request
+app.use((req, res, next) => {
+  if (req.user && req.user.permisos) {
+    req.ability = defineAbilitiesFor(req.user.permisos);
+  }
+  next();
+});
 
 // Rutas
 app.use('/api/auth', authRoutes);
-app.use('/api/usuarios', userRoutes);
+app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/roles', rolRoutes);
-app.use('/api/permisos', permisoRoutes);
-app.use('/api/habitaciones', habitacionRoutes);
-app.use('/api/rol-permiso',rolPermisoRoutes)
-
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`Servidor corriendo en el puerto ${PORT}`));
+app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));

@@ -1,18 +1,18 @@
-import express from 'express';
-import {
-  crearRol,
-  obtenerRoles,
-  obtenerRolPorId,
-  actualizarRol,
-  eliminarRol
-} from '../controllers/rol.controller.js';
+import { Router } from 'express';
+import { authMiddleware } from '../middlewares/authMiddleware.js';
+import { checkAbility } from '../middlewares/checkAbility.js';
+import { crearRol, listarRoles, obtenerRol, actualizarRol, eliminarRol, asignarPermisos } from '../controllers/rol.controller.js';
 
-const router = express.Router();
+const router = Router();
 
-router.post('/', crearRol);
-router.get('/', obtenerRoles);
-router.get('/:id', obtenerRolPorId);
-router.put('/:id', actualizarRol);
-router.delete('/:id', eliminarRol);
+// CRUD roles
+router.post('/', authMiddleware, checkAbility('create', 'Rol'), crearRol);
+router.get('/', authMiddleware, checkAbility('read', 'Rol'), listarRoles);
+router.get('/:id', authMiddleware, checkAbility('read', 'Rol'), obtenerRol);
+router.put('/:id', authMiddleware, checkAbility('update', 'Rol'), actualizarRol);
+router.delete('/:id', authMiddleware, checkAbility('delete', 'Rol'), eliminarRol);
+
+// Asignar permisos
+router.post('/:id/permisos', authMiddleware, checkAbility('update', 'Rol'), asignarPermisos);
 
 export default router;

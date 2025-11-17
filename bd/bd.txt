@@ -1,103 +1,21 @@
-
--- ===============================
--- 1️⃣ Tabla: rol
--- ===============================
-CREATE TABLE rol (
-  id_rol INT AUTO_INCREMENT PRIMARY KEY,
-  nombre_rol VARCHAR(100) UNIQUE NOT NULL,
-  descripcion TEXT
-);
-
--- ===============================
--- 2️⃣ Tabla: permisos
--- ===============================
-CREATE TABLE permisos (
-  id_permiso INT AUTO_INCREMENT PRIMARY KEY,
-  nombre VARCHAR(100) NOT NULL,
-  descripcion TEXT
-);
-
--- ===============================
--- 3️⃣ Tabla: rol_permiso (relación muchos a muchos)
--- ===============================
-CREATE TABLE rol_permiso (
-  id_rol INT NOT NULL,
-  id_permiso INT NOT NULL,
-  PRIMARY KEY (id_rol, id_permiso),
-  FOREIGN KEY (id_rol) REFERENCES rol(id_rol) ON DELETE CASCADE,
-  FOREIGN KEY (id_permiso) REFERENCES permisos(id_permiso) ON DELETE CASCADE
-);
-
--- ===============================
--- 4️⃣ Tabla: usuario
--- ===============================
-CREATE TABLE usuario (
-  id_usuario INT AUTO_INCREMENT PRIMARY KEY,
-  nombre VARCHAR(100) NOT NULL,
-  apellido VARCHAR(100) NOT NULL,
-  correo VARCHAR(100) UNIQUE,
-  password VARCHAR(255) NOT NULL,
-  id_rol INT,
-  fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (id_rol) REFERENCES rol(id_rol) ON DELETE SET NULL
-);
-
--- ===============================
--- 5️⃣ Tabla: tipo (tipo de habitación)
--- ===============================
-CREATE TABLE tipo (
-  id_tipo INT AUTO_INCREMENT PRIMARY KEY,
-  nombre VARCHAR(100) NOT NULL,
-  capacidad INT NOT NULL,
-  precio_base DECIMAL(10,2) NOT NULL,
-  descripcion TEXT
-);
-
--- ===============================
--- 6️⃣ Tabla: habitacion
--- ===============================
-CREATE TABLE habitacion (
-  id_habitacion INT AUTO_INCREMENT PRIMARY KEY,
-  numero VARCHAR(10) UNIQUE NOT NULL,
-  id_tipo INT NOT NULL,
-  precio_total DECIMAL(10,2),
-  piso INT,
-  estado ENUM('disponible','ocupada','limpieza') DEFAULT 'disponible',
-  descripcion TEXT,
-  FOREIGN KEY (id_tipo) REFERENCES tipo(id_tipo) ON DELETE CASCADE
-);
-
--- ===============================
--- 7️⃣ Tabla opcional: cliente
--- ===============================
-CREATE TABLE cliente (
-  id_cliente INT AUTO_INCREMENT PRIMARY KEY,
-  nombre VARCHAR(100) NOT NULL,
-  apellido VARCHAR(100) NOT NULL,
-  ci VARCHAR(20) UNIQUE NOT NULL,
-  correo VARCHAR(100),
-  celular VARCHAR(20),
-  direccion VARCHAR(150),
-  fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-----------------------------------------------------
 MariaDB [(none)]> use bd_hostal;
 Database changed
-MariaDB [bd_hostal]> show tables;;
+MariaDB [bd_hostal]> show tables;
 +---------------------+
 | Tables_in_bd_hostal |
 +---------------------+
 | cliente             |
 | habitacion          |
+| ocupacion           |
+| pago                |
 | permisos            |
+| reserva             |
 | rol                 |
 | rol_permiso         |
 | tipo                |
 | usuario             |
 +---------------------+
-7 rows in set (0.002 sec)
-
-ERROR: No query specified
+10 rows in set (0.001 sec)
 
 MariaDB [bd_hostal]> describe cliente;
 +----------------+--------------+------+-----+---------------------+----------------+
@@ -111,8 +29,9 @@ MariaDB [bd_hostal]> describe cliente;
 | celular        | varchar(20)  | YES  |     | NULL                |                |
 | direccion      | varchar(150) | YES  |     | NULL                |                |
 | fecha_registro | datetime     | YES  |     | current_timestamp() |                |
+| estado         | tinyint(1)   | YES  |     | 1                   |                |
 +----------------+--------------+------+-----+---------------------+----------------+
-8 rows in set (0.029 sec)
+9 rows in set (0.031 sec)
 
 MariaDB [bd_hostal]> describe habitacion;
 +---------------+-----------------------------------------+------+-----+------------+----------------+
@@ -126,7 +45,30 @@ MariaDB [bd_hostal]> describe habitacion;
 | estado        | enum('disponible','ocupada','limpieza') | YES  |     | disponible |                |
 | descripcion   | text                                    | YES  |     | NULL       |                |
 +---------------+-----------------------------------------+------+-----+------------+----------------+
-7 rows in set (0.028 sec)
+7 rows in set (0.027 sec)
+
+MariaDB [bd_hostal]> describe ocupacion;
++---------------+----------+------+-----+---------+----------------+
+| Field         | Type     | Null | Key | Default | Extra          |
++---------------+----------+------+-----+---------+----------------+
+| id_ocupacion  | int(11)  | NO   | PRI | NULL    | auto_increment |
+| id_reserva    | int(11)  | NO   | MUL | NULL    |                |
+| fecha_ingreso | datetime | NO   |     | NULL    |                |
+| fecha_salida  | datetime | YES  |     | NULL    |                |
++---------------+----------+------+-----+---------+----------------+
+4 rows in set (0.027 sec)
+
+MariaDB [bd_hostal]> describe pago;
++-------------+--------------------------------------------+------+-----+---------------------+----------------+
+| Field       | Type                                       | Null | Key | Default             | Extra          |
++-------------+--------------------------------------------+------+-----+---------------------+----------------+
+| id_pago     | int(11)                                    | NO   | PRI | NULL                | auto_increment |
+| id_reserva  | int(11)                                    | NO   | MUL | NULL                |                |
+| monto       | decimal(10,2)                              | NO   |     | NULL                |                |
+| fecha_pago  | datetime                                   | YES  |     | current_timestamp() |                |
+| metodo_pago | enum('efectivo','tarjeta','transferencia') | YES  |     | efectivo            |                |
++-------------+--------------------------------------------+------+-----+---------------------+----------------+
+5 rows in set (0.028 sec)
 
 MariaDB [bd_hostal]> describe permisos;
 +-------------+--------------+------+-----+---------+----------------+
@@ -136,7 +78,21 @@ MariaDB [bd_hostal]> describe permisos;
 | nombre      | varchar(100) | NO   |     | NULL    |                |
 | descripcion | text         | YES  |     | NULL    |                |
 +-------------+--------------+------+-----+---------+----------------+
-3 rows in set (0.030 sec)
+3 rows in set (0.026 sec)
+
+MariaDB [bd_hostal]> describe reserva;
++---------------+---------------------------------------------------------+------+-----+-----------+----------------+
+| Field         | Type                                                    | Null | Key | Default   | Extra          |
++---------------+---------------------------------------------------------+------+-----+-----------+----------------+
+| id_reserva    | int(11)                                                 | NO   | PRI | NULL      | auto_increment |
+| id_cliente    | int(11)                                                 | NO   | MUL | NULL      |                |
+| id_habitacion | int(11)                                                 | NO   | MUL | NULL      |                |
+| fecha_entrada | datetime                                                | NO   |     | NULL      |                |
+| fecha_salida  | datetime                                                | NO   |     | NULL      |                |
+| total         | decimal(10,2)                                           | NO   |     | NULL      |                |
+| estado        | enum('pendiente','confirmada','cancelada','finalizada') | YES  |     | pendiente |                |
++---------------+---------------------------------------------------------+------+-----+-----------+----------------+
+7 rows in set (0.026 sec)
 
 MariaDB [bd_hostal]> describe rol;
 +-------------+--------------+------+-----+---------+----------------+
@@ -146,7 +102,7 @@ MariaDB [bd_hostal]> describe rol;
 | nombre_rol  | varchar(100) | NO   | UNI | NULL    |                |
 | descripcion | text         | YES  |     | NULL    |                |
 +-------------+--------------+------+-----+---------+----------------+
-3 rows in set (0.032 sec)
+3 rows in set (0.027 sec)
 
 MariaDB [bd_hostal]> describe rol_permiso;
 +------------+---------+------+-----+---------+-------+
@@ -155,7 +111,7 @@ MariaDB [bd_hostal]> describe rol_permiso;
 | id_rol     | int(11) | NO   | PRI | NULL    |       |
 | id_permiso | int(11) | NO   | PRI | NULL    |       |
 +------------+---------+------+-----+---------+-------+
-2 rows in set (0.030 sec)
+2 rows in set (0.028 sec)
 
 MariaDB [bd_hostal]> describe tipo;
 +-------------+---------------+------+-----+---------+----------------+
@@ -167,7 +123,7 @@ MariaDB [bd_hostal]> describe tipo;
 | precio_base | decimal(10,2) | NO   |     | NULL    |                |
 | descripcion | text          | YES  |     | NULL    |                |
 +-------------+---------------+------+-----+---------+----------------+
-5 rows in set (0.026 sec)
+5 rows in set (0.028 sec)
 
 MariaDB [bd_hostal]> describe usuario;
 +----------------+--------------+------+-----+---------------------+----------------+
@@ -181,9 +137,8 @@ MariaDB [bd_hostal]> describe usuario;
 | password       | varchar(255) | NO   |     | NULL                |                |
 | id_rol         | int(11)      | YES  | MUL | NULL                |                |
 | fecha_registro | datetime     | YES  |     | current_timestamp() |                |
+| estado         | tinyint(1)   | YES  |     | 1                   |                |
 +----------------+--------------+------+-----+---------------------+----------------+
-8 rows in set (0.032 sec)
-
-MariaDB [bd_hostal]>
+9 rows in set (0.028 sec)
 
 MariaDB [bd_hostal]>
