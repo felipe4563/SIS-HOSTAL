@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import { initAbility } from '../middlewares/initAbility.js';
 import { checkAbility } from '../middlewares/checkAbility.js';
-import { crearUsuario, listarUsuarios, obtenerUsuario, actualizarUsuario, eliminarUsuario } from '../controllers/user.controller.js';
+import { crearUsuario, listarUsuarios, obtenerUsuario, actualizarUsuario, toggleEstadoUsuario } from '../controllers/user.controller.js';
 
 const router = Router();
 
@@ -19,6 +19,6 @@ router.get('/:id', authMiddleware, initAbility, checkAbility('read', 'Usuario'),
 router.put('/:id', authMiddleware, initAbility, checkAbility('update', 'Usuario'), actualizarUsuario);
 
 // Desactivar usuario
-router.delete('/:id', authMiddleware, initAbility, checkAbility('delete', 'Usuario'), eliminarUsuario);
+router.patch('/:id/estado', authMiddleware, initAbility, checkAbility('delete', 'Usuario'), toggleEstadoUsuario);
 
 export default router;

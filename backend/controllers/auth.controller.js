@@ -15,6 +15,12 @@ export const login = async (req, res) => {
       return res.status(404).json({ message: 'Usuario no encontrado' });
 
     const user = rows[0];
+
+    // ❌ Verificar si el usuario está activo
+    if (user.estado === 0) {
+      return res.status(403).json({ message: 'Usuario desactivado' });
+    }
+
     const match = await bcrypt.compare(password, user.password);
     if (!match)
       return res.status(401).json({ message: 'Contraseña incorrecta' });
@@ -53,3 +59,4 @@ export const login = async (req, res) => {
     res.status(500).json({ message: 'Error en el servidor' });
   }
 };
+

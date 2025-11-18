@@ -3,17 +3,25 @@ import {
   getRoles,
   createRol,
   updateRol,
-  deleteRol,
+  assignPermisos
 } from "../../services/rol.js";
+import { getPermisos } from "../../services/permisos.js";
 
 const RolesList = () => {
   const [roles, setRoles] = useState([]);
-  const [formData, setFormData] = useState({ nombre_rol: "", descripcion: "" });
+  const [permisos, setPermisos] = useState([]);
+
+  const [formData, setFormData] = useState({
+    nombre_rol: "",
+    descripcion: "",
+    permisos: []
+  });
+
   const [editando, setEditando] = useState(null);
 
-  // ✅ Cargar roles al montar
   useEffect(() => {
     fetchRoles();
+    fetchPermisos();
   }, []);
 
   const fetchRoles = async () => {
@@ -25,21 +33,50 @@ const RolesList = () => {
     }
   };
 
-  // ✅ Manejo del formulario
+  const fetchPermisos = async () => {
+    try {
+      const data = await getPermisos();
+      setPermisos(data);
+    } catch (err) {
+      console.error("Error al obtener permisos:", err);
+    }
+  };
+
   const handleChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const handleCheck = (id_permiso) => {
+    let nuevaLista = [...formData.permisos];
+
+    if (nuevaLista.includes(id_permiso)) {
+      nuevaLista = nuevaLista.filter((p) => p !== id_permiso); // desmarca
+    } else {
+      nuevaLista.push(id_permiso); // marca
+    }
+
+    setFormData({ ...formData, permisos: nuevaLista });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      let rolId;
+
       if (editando) {
         await updateRol(editando.id_rol, formData);
+        rolId = editando.id_rol;
       } else {
-        await createRol(formData);
+        const nuevo = await createRol(formData);
+        rolId = nuevo.id_rol;
       }
-      setFormData({ nombre_rol: "", descripcion: "" });
+
+      // Asignar permisos después del rol
+      await assignPermisos(rolId, formData.permisos);
+
+      setFormData({ nombre_rol: "", descripcion: "", permisos: [] });
       setEditando(null);
       fetchRoles();
+
     } catch (err) {
       console.error("Error al guardar rol:", err);
     }
@@ -47,7 +84,11 @@ const RolesList = () => {
 
   const handleEdit = (rol) => {
     setEditando(rol);
-    setFormData({ nombre_rol: rol.nombre_rol, descripcion: rol.descripcion });
+    setFormData({
+      nombre_rol: rol.nombre_rol,
+      descripcion: rol.descripcion,
+      permisos: rol.permisos || []
+    });
   };
 
   const handleDelete = async (id) => {
@@ -66,6 +107,7 @@ const RolesList = () => {
         {editando ? "Editar Rol" : "Registrar Nuevo Rol"}
       </h3>
 
+      {/* FORMULARIO */}
       <form
         onSubmit={handleSubmit}
         className="grid grid-cols-2 gap-4 mb-6 border-b pb-6"
@@ -79,6 +121,7 @@ const RolesList = () => {
           className="border rounded p-2"
           required
         />
+
         <input
           type="text"
           name="descripcion"
@@ -87,6 +130,25 @@ const RolesList = () => {
           onChange={handleChange}
           className="border rounded p-2"
         />
+
+        {/* PERMISOS CHECKBOX */}
+        <div className="col-span-2">
+          <h4 className="font-semibold mb-2">Permisos</h4>
+
+          <div className="grid grid-cols-3 gap-2">
+            {permisos.map((p) => (
+              <label key={p.id_permiso} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.permisos.includes(p.id_permiso)}
+                  onChange={() => handleCheck(p.id_permiso)}
+                />
+                {p.nombre}
+              </label>
+            ))}
+          </div>
+        </div>
+
         <button
           type="submit"
           className="bg-blue-600 text-white py-2 rounded hover:bg-blue-700 col-span-2"
@@ -95,32 +157,32 @@ const RolesList = () => {
         </button>
       </form>
 
-      {/* Tabla de roles */}
+      {/* TABLA */}
       <table className="w-full border-collapse">
         <thead>
           <tr className="bg-gray-100 text-left">
             <th className="p-2 border">#</th>
             <th className="p-2 border">Nombre</th>
-            <th className="p-2 border">Descripción</th>
-            <th className="p-2 border text-center">Acciones</th>
+            <th className="p-2 border">Permisos</th>
+            <th className="p-2 border">Acciones</th>
           </tr>
         </thead>
         <tbody>
           {roles.map((rol, index) => (
-            <tr key={rol.id_rol} className="hover:bg-gray-50">
+            <tr key={rol.id_rol}>
               <td className="p-2 border">{index + 1}</td>
               <td className="p-2 border">{rol.nombre_rol}</td>
-              <td className="p-2 border">{rol.descripcion}</td>
-              <td className="p-2 border text-center space-x-2">
+              <td className="p-2 border">{rol.permisos.join(", ")}</td>
+              <td className="p-2 border flex gap-2">
                 <button
                   onClick={() => handleEdit(rol)}
-                  className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
+                  className="bg-yellow-500 text-white px-3 py-1 rounded"
                 >
                   Editar
                 </button>
                 <button
                   onClick={() => handleDelete(rol.id_rol)}
-                  className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+                  className="bg-red-600 text-white px-3 py-1 rounded"
                 >
                   Eliminar
                 </button>
@@ -130,7 +192,7 @@ const RolesList = () => {
 
           {roles.length === 0 && (
             <tr>
-              <td colSpan="4" className="text-center text-gray-500 py-3">
+              <td className="text-center py-3" colSpan="4">
                 No hay roles registrados
               </td>
             </tr>

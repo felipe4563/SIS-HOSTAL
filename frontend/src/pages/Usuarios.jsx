@@ -1,7 +1,6 @@
 import { useState } from "react";
 import UsuarioLista from "../pages/usuarios/usuarioslista.jsx";
 import UsuarioForm from "../pages/usuarios/UsuariosForm.jsx";
-import RolesPermisos from "../pages/usuarios/RolesPermiso.jsx";
 
 const Usuarios = () => {
   const [activeTab, setActiveTab] = useState("usuarios");
@@ -28,7 +27,6 @@ const Usuarios = () => {
         {[
           { id: "usuarios", label: "👥 Usuarios" },
           { id: "formulario", label: "📝 Registrar Usuario" },
-          { id: "roles", label: "🔐 Roles y Permisos" },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -54,7 +52,6 @@ const Usuarios = () => {
       {activeTab === "formulario" && (
         <UsuarioForm usuarioEdit={editando} onSaved={handleUserSaved} />
       )}
-      {activeTab === "roles" && <RolesPermisos />}
     </div>
   );
 };

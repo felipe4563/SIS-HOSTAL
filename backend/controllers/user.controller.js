@@ -29,7 +29,11 @@ export const crearUsuario = async (req, res) => {
  */
 export const listarUsuarios = async (req, res) => {
   try {
-    const [rows] = await db.query(`SELECT * FROM usuario WHERE estado = 1`);
+    const [rows] = await db.query(`
+      SELECT u.id_usuario, u.nombre, u.apellido, u.ci, u.correo, u.id_rol, u.estado, r.nombre_rol
+      FROM usuario u
+      LEFT JOIN rol r ON u.id_rol = r.id_rol
+    `);
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -57,12 +61,13 @@ export const obtenerUsuario = async (req, res) => {
  */
 export const actualizarUsuario = async (req, res) => {
   const { id } = req.params;
-  const { nombre, apellido, ci, correo, password, id_rol, estado } = req.body;
+  const { nombre, apellido, ci, correo, password, id_rol } = req.body; // eliminamos estado
 
   try {
-    let query = 'UPDATE usuario SET nombre = ?, apellido = ?, ci = ?, correo = ?, id_rol = ?, estado = ?';
-    const params = [nombre, apellido, ci, correo, id_rol, estado];
+    let query = 'UPDATE usuario SET nombre = ?, apellido = ?, ci = ?, correo = ?, id_rol = ?';
+    const params = [nombre, apellido, ci, correo, id_rol];
 
+    // Solo actualizar contraseña si se envió
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 10);
       query += ', password = ?';
@@ -81,16 +86,25 @@ export const actualizarUsuario = async (req, res) => {
   }
 };
 
+
 /**
  * Desactivar usuario
  */
-export const eliminarUsuario = async (req, res) => {
+// controllers/user.controller.js
+export const toggleEstadoUsuario = async (req, res) => {
   const { id } = req.params;
   try {
-    await db.query('UPDATE usuario SET estado = 0 WHERE id_usuario = ?', [id]);
-    res.json({ message: 'Usuario desactivado' });
+    // Obtiene el usuario
+    const [rows] = await db.query('SELECT estado FROM usuario WHERE id_usuario = ?', [id]);
+    if (rows.length === 0) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    const nuevoEstado = rows[0].estado === 1 ? 0 : 1; // alterna entre activo y desactivado
+    await db.query('UPDATE usuario SET estado = ? WHERE id_usuario = ?', [nuevoEstado, id]);
+
+    res.json({ message: `Usuario ${nuevoEstado === 1 ? 'activado' : 'desactivado'}` });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Error al desactivar usuario' });
+    res.status(500).json({ message: 'Error al actualizar estado del usuario' });
   }
 };
+

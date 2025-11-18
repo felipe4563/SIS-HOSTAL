@@ -26,27 +26,24 @@ const MainLayout = () => {
 
   // Filtrar menú según permisos
   const menuFiltrado = menuItems.filter(item => {
-    if (item.modulo === 'dashboard') return true; // dashboard siempre visible
+    // Dashboard solo si tiene permiso dashboard.ver
+    if (item.modulo === 'dashboard') return tienePermisoModulo('dashboard');
     return tienePermisoModulo(item.modulo);
   });
 
+  // Verificar si la ruta está activa
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
 
-  const getRolDisplay = () => {
-    if (!usuario?.id_rol) return 'usuario';
-    if (typeof usuario.id_rol === 'number') {
-      const roles = { 1: 'administrador', 2: 'recepcionista', 3: 'limpieza', 4: 'usuario' };
-      return roles[usuario.id_rol] || 'usuario';
-    }
-    if (typeof usuario.id_rol === 'string') return usuario.id_rol.toLowerCase();
-    return 'usuario';
-  };
+  // Mostrar el rol directamente desde el usuario
+  const getRolDisplay = () => usuario?.rol || 'usuario';
 
+  // Iniciales del usuario
   const getInitials = () => usuario?.nombre ? usuario.nombre.charAt(0).toUpperCase() : 'U';
 
+  // Título de la página según menú filtrado
   const getPageTitle = () => {
     const currentItem = menuFiltrado.find(item => isActive(item.path));
-    return currentItem?.name || 'Dashboard';
+    return currentItem?.name || '';
   };
 
   return (
@@ -91,7 +88,7 @@ const MainLayout = () => {
           ))}
         </nav>
 
-        {/* Info usuario y logout */}
+        {/* Información del Usuario y Logout */}
         <div className="p-3 sm:p-4 border-t border-blue-700 bg-blue-800">
           <div className="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center text-white font-semibold text-sm sm:text-base">
@@ -102,6 +99,7 @@ const MainLayout = () => {
               <p className="text-blue-200 text-xs capitalize truncate">{getRolDisplay()}</p>
             </div>
           </div>
+
           <button
             onClick={logout}
             className="w-full flex items-center justify-center space-x-2 sm:space-x-3 bg-red-500 hover:bg-red-600 text-white py-2 sm:py-3 px-3 sm:px-4 rounded-lg font-medium transition-all duration-200 hover:shadow-lg transform hover:-translate-y-0.5 text-sm sm:text-base"

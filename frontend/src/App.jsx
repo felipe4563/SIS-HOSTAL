@@ -12,6 +12,18 @@ import Usuarios from "./pages/Usuarios.jsx";
 import Reportes from "./pages/Reportes.jsx";
 import Clientes from "./pages/clientes.jsx";
 
+// Componente que protege rutas según permisos
+const ProtectedRoute = ({ permiso, children }) => {
+  const { usuario } = useContext(AuthContext);
+
+  if (!usuario) return <Navigate to="/login" replace />;
+  if (permiso && !usuario.permisos.includes(permiso)) {
+    return <Navigate to="/" replace />; // o mostrar un "No autorizado"
+  }
+
+  return children;
+};
+
 function App() {
   const { usuario } = useContext(AuthContext);
 
@@ -20,28 +32,88 @@ function App() {
       {/* RUTA LOGIN */}
       <Route
         path="/login"
-        element={!usuario ? <Login /> : <Navigate to="/dashboard" replace />}
+        element={!usuario ? <Login /> : <Navigate to="/" replace />}
       />
 
-      {/* RUTAS PROTEGIDAS - SOLO UN LAYOUT */}
-      <Route 
-        path="/" 
+      {/* RUTAS PROTEGIDAS CON LAYOUT */}
+      <Route
+        path="/"
         element={usuario ? <MainLayout /> : <Navigate to="/login" replace />}
       >
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="habitaciones" element={<Habitaciones />} />
-        <Route path="reservas" element={<Reservas />} />
-        <Route path="usuarios" element={<Usuarios />} />
-        <Route path="reportes" element={<Reportes />} />
-        <Route path="clientes" element={<Clientes />} />
-        <Route path="roles" element={<Roles />} />
+        {/* Redirigir a dashboard solo si tiene permiso */}
+        <Route
+          index
+          element={
+            usuario?.permisos.includes("dashboard.ver") ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+
+        <Route
+          path="dashboard"
+          element={
+            <ProtectedRoute permiso="dashboard.ver">
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="habitaciones"
+          element={
+            <ProtectedRoute permiso="habitacion.ver">
+              <Habitaciones />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="reservas"
+          element={
+            <ProtectedRoute permiso="reserva.ver">
+              <Reservas />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="usuarios"
+          element={
+            <ProtectedRoute permiso="usuario.ver">
+              <Usuarios />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="reportes"
+          element={
+            <ProtectedRoute permiso="reporte.ver">
+              <Reportes />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="clientes"
+          element={
+            <ProtectedRoute permiso="cliente.ver">
+              <Clientes />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="roles"
+          element={
+            <ProtectedRoute permiso="rol.ver">
+              <Roles />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       {/* Ruta por defecto */}
-      <Route 
-        path="*" 
-        element={<Navigate to={usuario ? "/dashboard" : "/login"} replace />} 
+      <Route
+        path="*"
+        element={<Navigate to={usuario ? "/" : "/login"} replace />}
       />
     </Routes>
   );

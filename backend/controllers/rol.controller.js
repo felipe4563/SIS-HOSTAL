@@ -20,12 +20,25 @@ export const crearRol = async (req, res) => {
 };
 
 /**
- * Listar roles
+ * Listar roles con permisos
  */
 export const listarRoles = async (req, res) => {
   try {
-    const [rows] = await db.query(`SELECT * FROM rol`);
-    res.json(rows);
+    const [rows] = await db.query(`
+      SELECT r.id_rol, r.nombre_rol, r.descripcion,
+             GROUP_CONCAT(rp.id_permiso) AS permisos
+      FROM rol r
+      LEFT JOIN rol_permiso rp ON r.id_rol = rp.id_rol
+      GROUP BY r.id_rol
+    `);
+
+    // Convertir permisos de string a array de números
+    const roles = rows.map(r => ({
+      ...r,
+      permisos: r.permisos ? r.permisos.split(',').map(Number) : []
+    }));
+
+    res.json(roles);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error al listar roles' });
@@ -38,9 +51,20 @@ export const listarRoles = async (req, res) => {
 export const obtenerRol = async (req, res) => {
   const { id } = req.params;
   try {
-    const [rows] = await db.query(`SELECT * FROM rol WHERE id_rol = ?`, [id]);
+    const [rows] = await db.query(`
+      SELECT r.id_rol, r.nombre_rol, r.descripcion,
+             GROUP_CONCAT(rp.id_permiso) AS permisos
+      FROM rol r
+      LEFT JOIN rol_permiso rp ON r.id_rol = rp.id_rol
+      WHERE r.id_rol = ?
+      GROUP BY r.id_rol
+    `, [id]);
+
     if (rows.length === 0) return res.status(404).json({ message: 'Rol no encontrado' });
-    res.json(rows[0]);
+
+    const rol = rows[0];
+    rol.permisos = rol.permisos ? rol.permisos.split(',').map(Number) : [];
+    res.json(rol);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error al obtener rol' });
@@ -87,6 +111,20 @@ export const asignarPermisos = async (req, res) => {
   const { permisos = [] } = req.body; // array de id_permiso
 
   try {
+    // Validar que los permisos existen
+    if (permisos.length > 0) {
+      const [existing] = await db.query(
+        `SELECT id_permiso FROM permisos WHERE id_permiso IN (?)`, 
+        [permisos]
+      );
+
+      const existingIds = existing.map(p => p.id_permiso);
+      const invalid = permisos.filter(p => !existingIds.includes(p));
+      if (invalid.length > 0) {
+        return res.status(400).json({ message: 'Permisos inválidos', invalid });
+      }
+    }
+
     // Primero eliminar permisos existentes
     await db.query(`DELETE FROM rol_permiso WHERE id_rol = ?`, [id]);
 
@@ -96,7 +134,7 @@ export const asignarPermisos = async (req, res) => {
       await db.query(`INSERT INTO rol_permiso (id_rol, id_permiso) VALUES ?`, [values]);
     }
 
-    res.json({ message: 'Permisos asignados' });
+    res.json({ message: 'Permisos asignados', permisos });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error al asignar permisos' });

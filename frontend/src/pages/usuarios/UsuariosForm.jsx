@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import { registrarUsuario, actualizarUsuario } from "../../services/usuario";
-import { getRoles } from "../../services/rol"; // ✅ importar servicio de roles
+import { getRoles } from "../../services/rol"; 
+import { AuthContext } from "../../context/AuthContext.jsx";
 
 const UsuarioForm = ({ usuarioEdit, onSaved }) => {
+  const { usuario } = useContext(AuthContext);
   const [formData, setFormData] = useState({
     nombre: "",
     apellido: "",
@@ -11,7 +13,10 @@ const UsuarioForm = ({ usuarioEdit, onSaved }) => {
     password: "",
     id_rol: "",
   });
-  const [roles, setRoles] = useState([]); // ✅ estado para guardar roles
+  const [roles, setRoles] = useState([]);
+
+  // Verificar permisos
+  const tienePermiso = (permiso) => usuario?.permisos?.includes(permiso);
 
   // Cargar roles al montar
   useEffect(() => {
@@ -54,6 +59,15 @@ const UsuarioForm = ({ usuarioEdit, onSaved }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Revisar permisos antes de enviar
+    if (usuarioEdit && !tienePermiso("usuario.editar")) {
+      return alert("No tienes permiso para actualizar usuarios");
+    }
+    if (!usuarioEdit && !tienePermiso("usuario.crear")) {
+      return alert("No tienes permiso para registrar usuarios");
+    }
+
     try {
       if (usuarioEdit) {
         await actualizarUsuario(usuarioEdit.id_usuario, formData);
@@ -73,6 +87,11 @@ const UsuarioForm = ({ usuarioEdit, onSaved }) => {
       console.error("Error al guardar usuario:", err);
     }
   };
+
+  // Si no tiene permiso de crear ni editar, no mostrar formulario
+  if (!tienePermiso("usuario.crear") && !tienePermiso("usuario.editar")) {
+    return <p>No tienes permiso para crear o editar usuarios.</p>;
+  }
 
   return (
     <form
@@ -125,7 +144,6 @@ const UsuarioForm = ({ usuarioEdit, onSaved }) => {
         required={!usuarioEdit}
       />
 
-      {/* ✅ Select de roles */}
       <select
         name="id_rol"
         value={formData.id_rol}
