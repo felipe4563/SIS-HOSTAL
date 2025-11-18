@@ -1,5 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
+import cors from 'cors';
+
 import authRoutes from './routes/auth.routes.js';
 import usuarioRoutes from './routes/user.routes.js';
 import rolRoutes from './routes/rol.routes.js';
@@ -8,6 +10,28 @@ import { defineAbilitiesFor } from './config/abilities.js';
 
 dotenv.config();
 const app = express();
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://tudominio.com',   // <-- futuro dominio producción
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Permite requests sin origen (Postman, cURL)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Origen no permitido por CORS'));
+      }
+    },
+    credentials: true,
+  })
+);
+
 
 app.use(express.json());
 
