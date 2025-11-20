@@ -1,54 +1,33 @@
-import axios from 'axios';
+import api from "./api";
 
-const API_URL = 'http://localhost:4000/api';
+// Servicio de habitaciones
+export const listarHabitaciones = async () => {
+  const { data } = await api.get("/habitaciones");
+  return data;
+};
 
-const api = axios.create({
-  baseURL: API_URL,
-});
+export const obtenerHabitacion = async (id) => {
+  const { data } = await api.get(`/habitaciones/${id}`);
+  return data;
+};
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+export const crearHabitacion = async (habitacion) => {
+  const { data } = await api.post("/habitaciones", habitacion);
+  return data;
+};
 
-export const habitacionService = {
-  // Habitaciones
-  listarHabitaciones: async () => {
-    const response = await api.get('/habitaciones');
-    return response.data;
-  },
+export const actualizarHabitacion = async (id, datos) => {
+  const { data } = await api.put(`/habitaciones/${id}`, datos);
+  return data;
+};
 
-  crearHabitacion: async (datos) => {
-    const response = await api.post('/habitaciones', datos);
-    return response.data;
-  },
+export const eliminarHabitacion = async (id) => {
+  const { data } = await api.delete(`/habitaciones/${id}`);
+  return data;
+};
 
-  actualizarHabitacion: async (id, datos) => {
-    const response = await api.put(`/habitaciones/${id}`, datos);
-    return response.data;
-  },
-
-  eliminarHabitacion: async (id) => {
-    const response = await api.delete(`/habitaciones/${id}`);
-    return response.data;
-  },
-
-  // Tipos de habitación
-  listarTipos: async () => {
-    const response = await api.get('/tipos');
-    return response.data;
-  },
-
-  crearTipo: async (datos) => {
-    const response = await api.post('/tipos', datos);
-    return response.data;
-  },
-
-  eliminarTipo: async (id) => {
-    const response = await api.delete(`/tipos/${id}`);
-    return response.data;
-  }
+// Cambiar estado (disponible / ocupada / limpieza)
+export const cambiarEstadoHabitacion = async (id, estado) => {
+  const { data } = await api.patch(`/habitaciones/${id}/estado`, { estado });
+  return data;
 };

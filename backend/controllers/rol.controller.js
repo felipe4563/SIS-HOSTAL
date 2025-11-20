@@ -25,17 +25,21 @@ export const crearRol = async (req, res) => {
 export const listarRoles = async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT r.id_rol, r.nombre_rol, r.descripcion,
-             GROUP_CONCAT(rp.id_permiso) AS permisos
+      SELECT 
+        r.id_rol, 
+        r.nombre_rol, 
+        r.descripcion,
+        GROUP_CONCAT(p.nombre) AS permisos_nombres
       FROM rol r
       LEFT JOIN rol_permiso rp ON r.id_rol = rp.id_rol
+      LEFT JOIN permisos p ON rp.id_permiso = p.id_permiso
       GROUP BY r.id_rol
     `);
 
-    // Convertir permisos de string a array de números
+    // Convertir permisos de string a array de nombres
     const roles = rows.map(r => ({
       ...r,
-      permisos: r.permisos ? r.permisos.split(',').map(Number) : []
+      permisos: r.permisos_nombres ? r.permisos_nombres.split(',') : []
     }));
 
     res.json(roles);
@@ -44,6 +48,7 @@ export const listarRoles = async (req, res) => {
     res.status(500).json({ message: 'Error al listar roles' });
   }
 };
+
 
 /**
  * Obtener rol por ID

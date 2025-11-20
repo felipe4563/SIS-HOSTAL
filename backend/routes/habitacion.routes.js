@@ -1,10 +1,11 @@
 import express from 'express';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
-import { checkPermission } from '../middlewares/checkPermission.js';
+import { initAbility } from '../middlewares/initAbility.js';
+import { checkAbility } from '../middlewares/checkAbility.js';
 import {
   listarHabitaciones,
   obtenerHabitacion,
-  crearHabitacion,  // ✅ Asegúrate de importarla
+  crearHabitacion,
   editarHabitacion,
   eliminarHabitacion,
   cambiarEstadoHabitacion
@@ -12,11 +13,22 @@ import {
 
 const router = express.Router();
 
-router.get('/', authMiddleware, checkPermission('ver_habitaciones'), listarHabitaciones);
-router.get('/:id', authMiddleware, checkPermission('ver_habitaciones'), obtenerHabitacion);
-router.post('/', authMiddleware, checkPermission('crear_habitaciones'), crearHabitacion); // ✅ Ruta para CREAR
-router.put('/:id', authMiddleware, checkPermission('editar_habitaciones'), editarHabitacion);
-router.delete('/:id', authMiddleware, checkPermission('eliminar_habitaciones'), eliminarHabitacion);
-router.patch('/:id/estado', authMiddleware, checkPermission('editar_habitaciones'), cambiarEstadoHabitacion);
+// Listar habitaciones
+router.get('/', authMiddleware, initAbility, checkAbility('read', 'Habitacion'), listarHabitaciones);
+
+// Obtener habitación por id
+router.get('/:id', authMiddleware, initAbility, checkAbility('read', 'Habitacion'), obtenerHabitacion);
+
+// Crear habitación
+router.post('/', authMiddleware, initAbility, checkAbility('create', 'Habitacion'), crearHabitacion);
+
+// Editar habitación
+router.put('/:id', authMiddleware, initAbility, checkAbility('update', 'Habitacion'), editarHabitacion);
+
+// Eliminar habitación
+router.delete('/:id', authMiddleware, initAbility, checkAbility('delete', 'Habitacion'), eliminarHabitacion);
+
+// Cambiar estado de habitación
+router.patch('/:id/estado', authMiddleware, initAbility, checkAbility('update', 'Habitacion'), cambiarEstadoHabitacion);
 
 export default router;

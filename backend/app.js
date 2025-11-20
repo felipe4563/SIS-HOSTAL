@@ -6,6 +6,8 @@ import authRoutes from './routes/auth.routes.js';
 import usuarioRoutes from './routes/user.routes.js';
 import rolRoutes from './routes/rol.routes.js';
 import permisosRoutes from './routes/permiso.routes.js'
+import habitacionRoutes from './routes/habitacion.routes.js'
+import tipoRoutes from './routes/tipo.routes.js'
 import { authMiddleware } from './middlewares/authMiddleware.js';
 import { defineAbilitiesFor } from './config/abilities.js';
 
@@ -49,6 +51,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/roles', rolRoutes);
 app.use('/api/permisos', permisosRoutes);
+app.use('/api/habitaciones', habitacionRoutes);
+app.use('/api/tipos', tipoRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));

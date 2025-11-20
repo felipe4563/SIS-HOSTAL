@@ -1,6 +1,7 @@
 import express from 'express';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
-import { checkPermission } from '../middlewares/checkPermission.js';
+import { initAbility } from '../middlewares/initAbility.js';
+import { checkAbility } from '../middlewares/checkAbility.js';
 import {
   listarTipos,
   obtenerTipo,
@@ -11,14 +12,12 @@ import {
 
 const router = express.Router();
 
-// Todas las rutas requieren autenticación
-router.use(authMiddleware);
+router.use(authMiddleware, initAbility);
 
-// Rutas de tipos de habitación
-router.get('/', checkPermission('ver_habitaciones'), listarTipos);
-router.get('/:id', checkPermission('ver_habitaciones'), obtenerTipo);
-router.post('/', checkPermission('crear_habitaciones'), crearTipo);
-router.put('/:id', checkPermission('editar_habitaciones'), editarTipo);
-router.delete('/:id', checkPermission('eliminar_habitaciones'), eliminarTipo);
+router.get('/', checkAbility('read', 'Tipo'), listarTipos);
+router.get('/:id', checkAbility('read', 'Tipo'), obtenerTipo);
+router.post('/', checkAbility('create', 'Tipo'), crearTipo);
+router.put('/:id', checkAbility('update', 'Tipo'), editarTipo);
+router.delete('/:id', checkAbility('delete', 'Tipo'), eliminarTipo);
 
 export default router;

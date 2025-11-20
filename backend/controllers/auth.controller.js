@@ -6,8 +6,12 @@ export const login = async (req, res) => {
   const { identificador, password } = req.body; // puede ser correo o ci
 
   try {
+    // Traer usuario y nombre del rol en una sola consulta
     const [rows] = await db.query(
-      'SELECT * FROM usuario WHERE correo = ? OR ci = ?',
+      `SELECT u.*, r.nombre_rol
+       FROM usuario u
+       LEFT JOIN rol r ON u.id_rol = r.id_rol
+       WHERE u.correo = ? OR u.ci = ?`,
       [identificador, identificador]
     );
 
@@ -16,7 +20,6 @@ export const login = async (req, res) => {
 
     const user = rows[0];
 
-    // ❌ Verificar si el usuario está activo
     if (user.estado === 0) {
       return res.status(403).json({ message: 'Usuario desactivado' });
     }
@@ -34,7 +37,7 @@ export const login = async (req, res) => {
       [user.id_rol]
     );
 
-    const permisosUsuario = permisos.map(p => p.nombre); // ['ver_habitaciones', 'crear_roles', ...]
+    const permisosUsuario = permisos.map(p => p.nombre);
 
     const token = jwt.sign(
       { id_usuario: user.id_usuario, id_rol: user.id_rol, permisos: permisosUsuario },
@@ -51,9 +54,11 @@ export const login = async (req, res) => {
         correo: user.correo,
         ci: user.ci,
         id_rol: user.id_rol,
+        nombre_rol: user.nombre_rol, // ya viene del JOIN
         permisos: permisosUsuario
       }
     });
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error en el servidor' });

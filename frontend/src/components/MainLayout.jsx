@@ -35,7 +35,7 @@ const MainLayout = () => {
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
 
   // Mostrar el rol directamente desde el usuario
-  const getRolDisplay = () => usuario?.rol || 'usuario';
+  const getRolDisplay = () => usuario?.nombre_rol || 'usuario';
 
   // Iniciales del usuario
   const getInitials = () => usuario?.nombre ? usuario.nombre.charAt(0).toUpperCase() : 'U';
