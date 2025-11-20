@@ -26,14 +26,15 @@ export const listarRoles = async (req, res) => {
   try {
     const [rows] = await db.query(`
       SELECT 
-        r.id_rol, 
-        r.nombre_rol, 
-        r.descripcion,
-        GROUP_CONCAT(p.nombre) AS permisos_nombres
-      FROM rol r
-      LEFT JOIN rol_permiso rp ON r.id_rol = rp.id_rol
-      LEFT JOIN permisos p ON rp.id_permiso = p.id_permiso
-      GROUP BY r.id_rol
+      r.id_rol, 
+      r.nombre_rol, 
+      r.descripcion,
+      GROUP_CONCAT(rp.id_permiso) AS permisos_ids,
+      GROUP_CONCAT(p.nombre) AS permisos_nombres
+    FROM rol r
+    LEFT JOIN rol_permiso rp ON r.id_rol = rp.id_rol
+    LEFT JOIN permisos p ON rp.id_permiso = p.id_permiso
+    GROUP BY r.id_rol
     `);
 
     // Convertir permisos de string a array de nombres

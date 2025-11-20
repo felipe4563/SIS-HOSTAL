@@ -3,7 +3,8 @@ import {
   getRoles,
   createRol,
   updateRol,
-  assignPermisos
+  assignPermisos,
+  deleteRol
 } from "../../services/rol.js";
 import { getPermisos } from "../../services/permisos.js";
 
@@ -27,7 +28,14 @@ const RolesList = () => {
   const fetchRoles = async () => {
     try {
       const data = await getRoles();
-      setRoles(data);
+      // Convertimos permisos_nombres en array si no lo es
+      const rolesConArray = data.map(r => ({
+        ...r,
+        permisos: r.permisos_nombres
+          ? r.permisos_nombres.split(",")
+          : []
+      }));
+      setRoles(rolesConArray);
     } catch (err) {
       console.error("Error al obtener roles:", err);
     }
@@ -84,10 +92,15 @@ const RolesList = () => {
 
   const handleEdit = (rol) => {
     setEditando(rol);
+    // Convertimos los permisos a array de IDs para marcar los checkboxes
+    const permisosIds = permisos
+      .filter(p => rol.permisos.includes(p.nombre))
+      .map(p => p.id_permiso);
+
     setFormData({
       nombre_rol: rol.nombre_rol,
       descripcion: rol.descripcion,
-      permisos: rol.permisos || []
+      permisos: permisosIds
     });
   };
 
