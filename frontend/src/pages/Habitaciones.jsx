@@ -8,14 +8,16 @@ const Habitaciones = () => {
   const [editando, setEditando] = useState(null);
   const [reload, setReload] = useState(false);
 
+  // Cuando se hace click en "Editar"
   const handleEditHabitacion = (habitacion) => {
     setEditando(habitacion);
     setActiveTab("formulario");
   };
 
+  // Después de guardar la habitación (crear o editar)
   const handleHabitacionSaved = () => {
     setEditando(null);
-    setReload(!reload);
+    setReload(!reload); // forzar recarga de la lista
     setActiveTab("habitaciones");
   };
 
@@ -47,15 +49,15 @@ const Habitaciones = () => {
         ))}
       </div>
 
-      {/* Contenido */}
+      {/* Contenido según la pestaña activa */}
       {activeTab === "habitaciones" && (
         <HabitacionesLista onEdit={handleEditHabitacion} reload={reload} />
       )}
 
       {activeTab === "formulario" && (
         <HabitacionForm
-          habitacionEdit={editando}
-          onSaved={handleHabitacionSaved}
+          id={editando?.id_habitacion} // pasa el id de la habitación si se está editando
+          onSuccess={handleHabitacionSaved} // función que se llama después de guardar
         />
       )}
 

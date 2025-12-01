@@ -10,6 +10,7 @@ import {
   eliminarHabitacion,
   cambiarEstadoHabitacion
 } from '../controllers/habitacion.controller.js';
+import { upload } from '../middlewares/multer.js';
 
 const router = express.Router();
 
@@ -20,10 +21,10 @@ router.get('/', authMiddleware, initAbility, checkAbility('read', 'Habitacion'),
 router.get('/:id', authMiddleware, initAbility, checkAbility('read', 'Habitacion'), obtenerHabitacion);
 
 // Crear habitación
-router.post('/', authMiddleware, initAbility, checkAbility('create', 'Habitacion'), crearHabitacion);
+router.post('/', authMiddleware, initAbility, checkAbility('create', 'Habitacion'), upload.array('imagenes', 5), crearHabitacion);
 
 // Editar habitación
-router.put('/:id', authMiddleware, initAbility, checkAbility('update', 'Habitacion'), editarHabitacion);
+router.put('/:id', authMiddleware, initAbility, checkAbility('update', 'Habitacion'), upload.array('imagenes', 5),editarHabitacion);
 
 // Eliminar habitación
 router.delete('/:id', authMiddleware, initAbility, checkAbility('delete', 'Habitacion'), eliminarHabitacion);

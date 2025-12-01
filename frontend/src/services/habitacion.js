@@ -11,15 +11,25 @@ export const obtenerHabitacion = async (id) => {
   return data;
 };
 
-export const crearHabitacion = async (habitacion) => {
-  const { data } = await api.post("/habitaciones", habitacion);
+export const crearHabitacion = async (formData) => {
+  const { data } = await api.post("/habitaciones", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data"
+    }
+  });
   return data;
 };
 
-export const actualizarHabitacion = async (id, datos) => {
-  const { data } = await api.put(`/habitaciones/${id}`, datos);
+export const actualizarHabitacion = async (id, formData) => {
+  const { data } = await api.put(`/habitaciones/${id}`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data"
+    }
+  });
   return data;
 };
+
+
 
 export const eliminarHabitacion = async (id) => {
   const { data } = await api.delete(`/habitaciones/${id}`);

@@ -1,6 +1,8 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import path from "path";
+import { fileURLToPath } from "url";
 
 import authRoutes from './routes/auth.routes.js';
 import usuarioRoutes from './routes/user.routes.js';
@@ -37,6 +39,8 @@ app.use(
 
 
 app.use(express.json());
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Middleware para inicializar Ability CASL en cada request
 app.use((req, res, next) => {
@@ -53,6 +57,7 @@ app.use('/api/roles', rolRoutes);
 app.use('/api/permisos', permisosRoutes);
 app.use('/api/habitaciones', habitacionRoutes);
 app.use('/api/tipos', tipoRoutes);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
