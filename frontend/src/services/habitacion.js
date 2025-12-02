@@ -6,8 +6,25 @@ export const listarHabitaciones = async () => {
   return data;
 };
 
+// En tu services/habitacion.js
 export const obtenerHabitacion = async (id) => {
   const { data } = await api.get(`/habitaciones/${id}`);
+  
+  // Asegurar que las imágenes tengan el formato correcto
+  if (data.imagenes && Array.isArray(data.imagenes)) {
+    data.imagenes = data.imagenes.map(img => {
+      // Si es una string (URL completa), convertir a objeto
+      if (typeof img === 'string') {
+        return {
+          id_imagen: null, // Temporal, no tenemos id
+          ruta: img,
+          es_portada: false
+        };
+      }
+      return img;
+    });
+  }
+  
   return data;
 };
 

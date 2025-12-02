@@ -1,8 +1,16 @@
 import db from '../config/db.js';
+import path from 'path';
+
+// Función auxiliar para extraer solo el nombre del archivo
+function extraerNombreArchivo(rutaCompleta) {
+  if (!rutaCompleta) return null;
+  // Para Windows (\) y Linux/Mac (/)
+  return rutaCompleta.split(/[/\\]/).pop();
+}
 
 export const listarHabitaciones = async (req, res) => {
   try {
-    const [rows] = await db.query(`
+    const [habitaciones] = await db.query(`
       SELECT 
         h.*,
         t.nombre AS tipo_habitacion,
@@ -13,14 +21,24 @@ export const listarHabitaciones = async (req, res) => {
       ORDER BY h.piso, h.numero
     `);
 
-    // Convertir rutas JSON en URLs completas
-    const habitaciones = rows.map(h => ({
-      ...h,
-      imagenes: h.imagenes
-        ? JSON.parse(h.imagenes).map(img => `${process.env.BACKEND_URL}/uploads/habitaciones/${img}`)
-        : []
-    }));
+    // Obtener imágenes para cada habitación
+    for (let habitacion of habitaciones) {
+      const [imagenes] = await db.query(
+        'SELECT ruta FROM habitacion_imagen WHERE id_habitacion = ?',
+        [habitacion.id_habitacion]
+      );
+      
+      // Aquí aplicamos la función para corregir las rutas
+      habitacion.imagenes = imagenes.map(img => {
+        const nombreArchivo = extraerNombreArchivo(img.ruta);
+        if (!nombreArchivo) return null;
+        
+        // Construir URL correcta
+        return `${process.env.BACKEND_URL || 'http://localhost:4000'}/uploads/habitaciones/${nombreArchivo}`;
+      }).filter(url => url !== null); // Filtrar URLs nulas
+    }
 
+    console.log("Primera habitación con imágenes corregidas:", habitaciones[0]);
     res.json(habitaciones);
   } catch (error) {
     console.error("Error al obtener habitaciones:", error);
@@ -32,9 +50,8 @@ export const obtenerHabitacion = async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Obtener datos de la habitación con su tipo
-    const [rows] = await db.query(
-      `
+    // Obtener datos de la habitación
+    const [habitacion] = await db.query(`
       SELECT 
         h.*,
         t.nombre AS tipo_habitacion,
@@ -43,24 +60,30 @@ export const obtenerHabitacion = async (req, res) => {
       FROM habitacion h
       INNER JOIN tipo t ON h.id_tipo = t.id_tipo
       WHERE h.id_habitacion = ?
-      `,
-      [id]
-    );
+    `, [id]);
 
-    if (rows.length === 0) {
-      return res.status(404).json({ message: "Habitación no encontrada" });
+    if (habitacion.length === 0) {
+      return res.status(404).json({ message: 'Habitación no encontrada' });
     }
 
-    const habitacion = rows[0];
-
-    // Obtener imágenes de la habitación
+    // Obtener imágenes
     const [imagenes] = await db.query(
-      `SELECT id_imagen, ruta, es_portada FROM habitacion_imagen WHERE id_habitacion = ?`,
+      'SELECT id_imagen, ruta, es_portada FROM habitacion_imagen WHERE id_habitacion = ?',
       [id]
     );
 
-    // Devolver datos junto con las imágenes
-    res.json({ ...habitacion, imagenes });
+    // Construir objeto de habitación con imágenes
+    const habitacionCompleta = {
+      ...habitacion[0],
+      imagenes: imagenes.map(img => ({
+        id_imagen: img.id_imagen,
+        // Aquí debes construir la URL completa igual que en listarHabitaciones
+        ruta: `${process.env.BACKEND_URL || 'http://localhost:4000'}/uploads/habitaciones/${extraerNombreArchivo(img.ruta)}`,
+        es_portada: img.es_portada
+      }))
+    };
+
+    res.json(habitacionCompleta);
   } catch (error) {
     console.error("Error al obtener habitación:", error);
     res.status(500).json({ message: "Error al obtener habitación" });
@@ -71,7 +94,7 @@ export const obtenerHabitacion = async (req, res) => {
 // ✅ AGREGAR ESTA FUNCIÓN PARA CREAR HABITACIONES
 export const crearHabitacion = async (req, res) => {
   const { numero, id_tipo, precio_total, piso, estado, descripcion } = req.body;
-  const files = req.files; // aquí estarán las imágenes
+  const files = req.files;
 
   if (!numero || !id_tipo || !precio_total) {
     return res.status(400).json({ message: 'Número, tipo y precio total son obligatorios' });
@@ -99,7 +122,7 @@ export const crearHabitacion = async (req, res) => {
     if (files && files.length > 0) {
       const insertImages = files.map(file => [
         habitacionId,
-        file.path,      // ruta en servidor
+        file.filename,  // Solo el nombre del archivo, NO la ruta completa
         0               // es_portada por defecto
       ]);
 
@@ -109,7 +132,10 @@ export const crearHabitacion = async (req, res) => {
       );
     }
 
-    res.status(201).json({ message: 'Habitación creada exitosamente', id: habitacionId });
+    res.status(201).json({ 
+      message: 'Habitación creada exitosamente', 
+      id: habitacionId 
+    });
   } catch (error) {
     console.error('Error al crear habitación:', error);
     if (error.code === 'ER_NO_REFERENCED_ROW_2') {
@@ -119,11 +145,10 @@ export const crearHabitacion = async (req, res) => {
   }
 };
 
-
 export const editarHabitacion = async (req, res) => {
   const { id } = req.params;
   const { numero, id_tipo, precio_total, piso, estado, descripcion, imagenesExistentes } = req.body;
-  const files = req.files; // nuevas imágenes
+  const files = req.files;
 
   try {
     // Verificar si la habitación existe
@@ -160,12 +185,29 @@ export const editarHabitacion = async (req, res) => {
     );
 
     // 2️⃣ Borrar las imágenes que no estén en imagenesExistentes
-    const idsExistentes = imagenesExistentes ? JSON.parse(imagenesExistentes).map(img => img.id_imagen) : [];
-    const imgsBorrar = imgsActuales.filter(img => !idsExistentes.includes(img.id_imagen));
-    for (const img of imgsBorrar) {
-      // eliminar archivo del servidor
-      try { fs.unlinkSync(img.ruta); } catch(e){ console.log("Archivo ya eliminado:", img.ruta); }
+    let idsExistentes = [];
+    if (imagenesExistentes) {
+      try {
+        idsExistentes = JSON.parse(imagenesExistentes).map(img => img.id_imagen);
+      } catch (e) {
+        console.error('Error al parsear imagenesExistentes:', e);
+      }
     }
+
+    const imgsBorrar = imgsActuales.filter(img => !idsExistentes.includes(img.id_imagen));
+    
+    for (const img of imgsBorrar) {
+      try {
+        // Eliminar archivo físico
+        const filePath = path.join('uploads', 'habitaciones', img.ruta);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch(e) { 
+        console.log("Error eliminando archivo:", e.message);
+      }
+    }
+    
     if (imgsBorrar.length > 0) {
       await db.query(
         'DELETE FROM habitacion_imagen WHERE id_imagen IN (?)',
@@ -175,7 +217,7 @@ export const editarHabitacion = async (req, res) => {
 
     // 3️⃣ Guardar nuevas imágenes
     if (files && files.length > 0) {
-      const insertImages = files.map(file => [id, file.path, 0]);
+      const insertImages = files.map(file => [id, file.filename, 0]);
       await db.query(
         'INSERT INTO habitacion_imagen (id_habitacion, ruta, es_portada) VALUES ?',
         [insertImages]
