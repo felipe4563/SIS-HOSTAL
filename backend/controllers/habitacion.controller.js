@@ -1,13 +1,23 @@
 import db from '../config/db.js';
 import path from 'path';
+import fs from 'fs';
 
 // Función auxiliar para extraer solo el nombre del archivo
 function extraerNombreArchivo(rutaCompleta) {
   if (!rutaCompleta) return null;
-  // Para Windows (\) y Linux/Mac (/)
   return rutaCompleta.split(/[/\\]/).pop();
 }
 
+// Función auxiliar para construir URL de imagen
+function construirUrlImagen(nombreArchivo, tipo = 'normal') {
+  if (!nombreArchivo) return null;
+  const carpeta = tipo === '360' ? 'habitaciones/360' : 'habitaciones';
+  return `${process.env.BACKEND_URL || 'http://localhost:4000'}/uploads/${carpeta}/${nombreArchivo}`;
+}
+
+// ============================
+// LISTAR HABITACIONES
+// ============================
 export const listarHabitaciones = async (req, res) => {
   try {
     const [habitaciones] = await db.query(`
@@ -24,21 +34,39 @@ export const listarHabitaciones = async (req, res) => {
     // Obtener imágenes para cada habitación
     for (let habitacion of habitaciones) {
       const [imagenes] = await db.query(
-        'SELECT ruta FROM habitacion_imagen WHERE id_habitacion = ?',
+        `SELECT id_imagen, ruta, tipo_imagen, titulo, descripcion, orden, es_portada 
+         FROM habitacion_imagen 
+         WHERE id_habitacion = ? 
+         ORDER BY es_portada DESC, orden ASC`,
         [habitacion.id_habitacion]
       );
-      
-      // Aquí aplicamos la función para corregir las rutas
-      habitacion.imagenes = imagenes.map(img => {
-        const nombreArchivo = extraerNombreArchivo(img.ruta);
-        if (!nombreArchivo) return null;
-        
-        // Construir URL correcta
-        return `${process.env.BACKEND_URL || 'http://localhost:4000'}/uploads/habitaciones/${nombreArchivo}`;
-      }).filter(url => url !== null); // Filtrar URLs nulas
+
+      // Separar imágenes normales y 360°
+      habitacion.imagenes = imagenes
+        .filter(img => img.tipo_imagen === 'normal')
+        .map(img => ({
+          id_imagen: img.id_imagen,
+          url: construirUrlImagen(extraerNombreArchivo(img.ruta), 'normal'),
+          es_portada: img.es_portada
+        }));
+
+      habitacion.imagenes_360 = imagenes
+        .filter(img => img.tipo_imagen === '360')
+        .map(img => ({
+          id_imagen: img.id_imagen,
+          url: construirUrlImagen(extraerNombreArchivo(img.ruta), '360'),
+          titulo: img.titulo,
+          descripcion: img.descripcion,
+          orden: img.orden
+        }));
+
+      // Imagen de portada para mostrar en listado
+      const portada = imagenes.find(img => img.es_portada === 1 && img.tipo_imagen === 'normal');
+      habitacion.imagen_portada = portada 
+        ? construirUrlImagen(extraerNombreArchivo(portada.ruta), 'normal')
+        : (habitacion.imagenes[0]?.url || null);
     }
 
-    console.log("Primera habitación con imágenes corregidas:", habitaciones[0]);
     res.json(habitaciones);
   } catch (error) {
     console.error("Error al obtener habitaciones:", error);
@@ -46,11 +74,13 @@ export const listarHabitaciones = async (req, res) => {
   }
 };
 
+// ============================
+// OBTENER HABITACIÓN POR ID
+// ============================
 export const obtenerHabitacion = async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Obtener datos de la habitación
     const [habitacion] = await db.query(`
       SELECT 
         h.*,
@@ -66,21 +96,34 @@ export const obtenerHabitacion = async (req, res) => {
       return res.status(404).json({ message: 'Habitación no encontrada' });
     }
 
-    // Obtener imágenes
+    // Obtener todas las imágenes
     const [imagenes] = await db.query(
-      'SELECT id_imagen, ruta, es_portada FROM habitacion_imagen WHERE id_habitacion = ?',
+      `SELECT id_imagen, ruta, tipo_imagen, titulo, descripcion, orden, es_portada 
+       FROM habitacion_imagen 
+       WHERE id_habitacion = ?
+       ORDER BY tipo_imagen, orden ASC`,
       [id]
     );
 
-    // Construir objeto de habitación con imágenes
+    // Construir respuesta
     const habitacionCompleta = {
       ...habitacion[0],
-      imagenes: imagenes.map(img => ({
-        id_imagen: img.id_imagen,
-        // Aquí debes construir la URL completa igual que en listarHabitaciones
-        ruta: `${process.env.BACKEND_URL || 'http://localhost:4000'}/uploads/habitaciones/${extraerNombreArchivo(img.ruta)}`,
-        es_portada: img.es_portada
-      }))
+      imagenes: imagenes
+        .filter(img => img.tipo_imagen === 'normal')
+        .map(img => ({
+          id_imagen: img.id_imagen,
+          url: construirUrlImagen(extraerNombreArchivo(img.ruta), 'normal'),
+          es_portada: img.es_portada
+        })),
+      imagenes_360: imagenes
+        .filter(img => img.tipo_imagen === '360')
+        .map(img => ({
+          id_imagen: img.id_imagen,
+          url: construirUrlImagen(extraerNombreArchivo(img.ruta), '360'),
+          titulo: img.titulo,
+          descripcion: img.descripcion,
+          orden: img.orden
+        }))
     };
 
     res.json(habitacionCompleta);
@@ -90,8 +133,9 @@ export const obtenerHabitacion = async (req, res) => {
   }
 };
 
-
-// ✅ AGREGAR ESTA FUNCIÓN PARA CREAR HABITACIONES
+// ============================
+// CREAR HABITACIÓN
+// ============================
 export const crearHabitacion = async (req, res) => {
   const { numero, id_tipo, precio_total, piso, estado, descripcion } = req.body;
   const files = req.files;
@@ -101,6 +145,7 @@ export const crearHabitacion = async (req, res) => {
   }
 
   try {
+    // Verificar si el número ya existe
     const [existe] = await db.query(
       'SELECT id_habitacion FROM habitacion WHERE numero = ?',
       [numero]
@@ -110,6 +155,7 @@ export const crearHabitacion = async (req, res) => {
       return res.status(400).json({ message: 'El número de habitación ya existe' });
     }
 
+    // Insertar habitación
     const [result] = await db.query(
       `INSERT INTO habitacion (numero, id_tipo, precio_total, piso, estado, descripcion)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -118,23 +164,29 @@ export const crearHabitacion = async (req, res) => {
 
     const habitacionId = result.insertId;
 
-    // Guardar imágenes en habitacion_imagen
+    // Guardar imágenes normales
     if (files && files.length > 0) {
-      const insertImages = files.map(file => [
+      const insertImages = files.map((file, index) => [
         habitacionId,
-        file.filename,  // Solo el nombre del archivo, NO la ruta completa
-        0               // es_portada por defecto
+        file.filename,
+        'normal',           // tipo_imagen
+        null,               // titulo
+        null,               // descripcion
+        index,              // orden
+        index === 0 ? 1 : 0 // Primera imagen como portada
       ]);
 
       await db.query(
-        `INSERT INTO habitacion_imagen (id_habitacion, ruta, es_portada) VALUES ?`,
+        `INSERT INTO habitacion_imagen 
+         (id_habitacion, ruta, tipo_imagen, titulo, descripcion, orden, es_portada) 
+         VALUES ?`,
         [insertImages]
       );
     }
 
-    res.status(201).json({ 
-      message: 'Habitación creada exitosamente', 
-      id: habitacionId 
+    res.status(201).json({
+      message: 'Habitación creada exitosamente',
+      id: habitacionId
     });
   } catch (error) {
     console.error('Error al crear habitación:', error);
@@ -145,6 +197,9 @@ export const crearHabitacion = async (req, res) => {
   }
 };
 
+// ============================
+// EDITAR HABITACIÓN
+// ============================
 export const editarHabitacion = async (req, res) => {
   const { id } = req.params;
   const { numero, id_tipo, precio_total, piso, estado, descripcion, imagenesExistentes } = req.body;
@@ -156,7 +211,9 @@ export const editarHabitacion = async (req, res) => {
       'SELECT id_habitacion FROM habitacion WHERE id_habitacion = ?',
       [id]
     );
-    if (habitacion.length === 0) return res.status(404).json({ message: 'Habitación no encontrada' });
+    if (habitacion.length === 0) {
+      return res.status(404).json({ message: 'Habitación no encontrada' });
+    }
 
     // Verificar número duplicado
     if (numero) {
@@ -164,10 +221,12 @@ export const editarHabitacion = async (req, res) => {
         'SELECT id_habitacion FROM habitacion WHERE numero = ? AND id_habitacion != ?',
         [numero, id]
       );
-      if (existe.length > 0) return res.status(400).json({ message: 'El número de habitación ya existe' });
+      if (existe.length > 0) {
+        return res.status(400).json({ message: 'El número de habitación ya existe' });
+      }
     }
 
-    // Actualizar campos de la habitación
+    // Actualizar datos de la habitación
     await db.query(
       `UPDATE habitacion 
        SET numero=?, id_tipo=?, precio_total=?, piso=?, estado=?, descripcion=?
@@ -176,15 +235,13 @@ export const editarHabitacion = async (req, res) => {
     );
 
     // ============================
-    // MANEJO DE IMÁGENES
+    // MANEJO DE IMÁGENES NORMALES
     // ============================
-    // 1️⃣ Obtener todas las imágenes actuales
     const [imgsActuales] = await db.query(
-      'SELECT * FROM habitacion_imagen WHERE id_habitacion = ?',
+      "SELECT * FROM habitacion_imagen WHERE id_habitacion = ? AND tipo_imagen = 'normal'",
       [id]
     );
 
-    // 2️⃣ Borrar las imágenes que no estén en imagenesExistentes
     let idsExistentes = [];
     if (imagenesExistentes) {
       try {
@@ -194,20 +251,20 @@ export const editarHabitacion = async (req, res) => {
       }
     }
 
+    // Eliminar imágenes que ya no están
     const imgsBorrar = imgsActuales.filter(img => !idsExistentes.includes(img.id_imagen));
-    
+
     for (const img of imgsBorrar) {
       try {
-        // Eliminar archivo físico
-        const filePath = path.join('uploads', 'habitaciones', img.ruta);
+        const filePath = path.join('uploads', 'habitaciones', extraerNombreArchivo(img.ruta));
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
         }
-      } catch(e) { 
+      } catch (e) {
         console.log("Error eliminando archivo:", e.message);
       }
     }
-    
+
     if (imgsBorrar.length > 0) {
       await db.query(
         'DELETE FROM habitacion_imagen WHERE id_imagen IN (?)',
@@ -215,11 +272,28 @@ export const editarHabitacion = async (req, res) => {
       );
     }
 
-    // 3️⃣ Guardar nuevas imágenes
+    // Guardar nuevas imágenes
     if (files && files.length > 0) {
-      const insertImages = files.map(file => [id, file.filename, 0]);
+      const [maxOrden] = await db.query(
+        "SELECT COALESCE(MAX(orden), 0) as max_orden FROM habitacion_imagen WHERE id_habitacion = ? AND tipo_imagen = 'normal'",
+        [id]
+      );
+      let orden = maxOrden[0].max_orden + 1;
+
+      const insertImages = files.map((file) => [
+        id,
+        file.filename,
+        'normal',
+        null,
+        null,
+        orden++,
+        0
+      ]);
+
       await db.query(
-        'INSERT INTO habitacion_imagen (id_habitacion, ruta, es_portada) VALUES ?',
+        `INSERT INTO habitacion_imagen 
+         (id_habitacion, ruta, tipo_imagen, titulo, descripcion, orden, es_portada) 
+         VALUES ?`,
         [insertImages]
       );
     }
@@ -232,14 +306,15 @@ export const editarHabitacion = async (req, res) => {
   }
 };
 
-
+// ============================
+// ELIMINAR HABITACIÓN
+// ============================
 export const eliminarHabitacion = async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Verificar si la habitación existe
     const [habitacion] = await db.query(
-      'SELECT id_habitacion FROM habitacion WHERE id_habitacion = ?',
+      'SELECT id_habitacion, estado FROM habitacion WHERE id_habitacion = ?',
       [id]
     );
 
@@ -247,20 +322,36 @@ export const eliminarHabitacion = async (req, res) => {
       return res.status(404).json({ message: 'Habitación no encontrada' });
     }
 
-    // Verificar si la habitación está ocupada antes de eliminar
-    const [estado] = await db.query(
-      'SELECT estado FROM habitacion WHERE id_habitacion = ?',
-      [id]
-    );
-
-    if (estado[0].estado === 'ocupada') {
-      return res.status(400).json({ 
-        message: 'No se puede eliminar una habitación ocupada' 
+    if (habitacion[0].estado === 'ocupada') {
+      return res.status(400).json({
+        message: 'No se puede eliminar una habitación ocupada'
       });
     }
 
+    // Eliminar imágenes físicas
+    const [imagenes] = await db.query(
+      'SELECT ruta, tipo_imagen FROM habitacion_imagen WHERE id_habitacion = ?',
+      [id]
+    );
+
+    for (const img of imagenes) {
+      try {
+        const carpeta = img.tipo_imagen === '360' ? 'habitaciones/360' : 'habitaciones';
+        const filePath = path.join('uploads', carpeta, extraerNombreArchivo(img.ruta));
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (e) {
+        console.log("Error eliminando archivo:", e.message);
+      }
+    }
+
+    // Eliminar registros de imágenes
+    await db.query('DELETE FROM habitacion_imagen WHERE id_habitacion = ?', [id]);
+
+    // Eliminar habitación
     await db.query('DELETE FROM habitacion WHERE id_habitacion = ?', [id]);
-    
+
     res.json({ message: 'Habitación eliminada exitosamente' });
   } catch (error) {
     console.error('Error al eliminar habitación:', error);
@@ -268,15 +359,18 @@ export const eliminarHabitacion = async (req, res) => {
   }
 };
 
+// ============================
+// CAMBIAR ESTADO DE HABITACIÓN
+// ============================
 export const cambiarEstadoHabitacion = async (req, res) => {
   const { id } = req.params;
   const { estado } = req.body;
 
   const estadosPermitidos = ['disponible', 'ocupada', 'limpieza'];
-  
+
   if (!estadosPermitidos.includes(estado)) {
-    return res.status(400).json({ 
-      message: 'Estado no válido. Use: disponible, ocupada o limpieza' 
+    return res.status(400).json({
+      message: 'Estado no válido. Use: disponible, ocupada o limpieza'
     });
   }
 
@@ -294,5 +388,155 @@ export const cambiarEstadoHabitacion = async (req, res) => {
   } catch (error) {
     console.error('Error al cambiar estado:', error);
     res.status(500).json({ message: 'Error al cambiar estado' });
+  }
+};
+
+// ============================
+// SUBIR IMÁGENES 360°
+// ============================
+export const subirImagenes360 = async (req, res) => {
+  const { id } = req.params;
+  const { titulo, descripcion, orden } = req.body;
+  const file = req.file;
+
+  if (!file) {
+    return res.status(400).json({ message: 'No se proporcionó ninguna imagen' });
+  }
+
+  try {
+    // Verificar que la habitación existe
+    const [habitacion] = await db.query(
+      'SELECT id_habitacion FROM habitacion WHERE id_habitacion = ?',
+      [id]
+    );
+
+    if (habitacion.length === 0) {
+      return res.status(404).json({ message: 'Habitación no encontrada' });
+    }
+
+    // Obtener el siguiente orden si no se proporciona
+    let ordenFinal = orden;
+    if (!orden) {
+      const [maxOrden] = await db.query(
+        "SELECT COALESCE(MAX(orden), 0) as max_orden FROM habitacion_imagen WHERE id_habitacion = ? AND tipo_imagen = '360'",
+        [id]
+      );
+      ordenFinal = maxOrden[0].max_orden + 1;
+    }
+
+    // Insertar imagen 360°
+    const [result] = await db.query(
+      `INSERT INTO habitacion_imagen 
+       (id_habitacion, ruta, tipo_imagen, titulo, descripcion, orden, es_portada) 
+       VALUES (?, ?, '360', ?, ?, ?, 0)`,
+      [id, file.filename, titulo || null, descripcion || null, ordenFinal]
+    );
+
+    res.status(201).json({
+      message: 'Imagen 360° subida exitosamente',
+      id_imagen: result.insertId,
+      url: construirUrlImagen(file.filename, '360')
+    });
+  } catch (error) {
+    console.error('Error al subir imagen 360°:', error);
+    res.status(500).json({ message: 'Error al subir imagen 360°' });
+  }
+};
+
+// ============================
+// LISTAR IMÁGENES 360° DE UNA HABITACIÓN
+// ============================
+export const listarImagenes360 = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [imagenes] = await db.query(
+      `SELECT id_imagen, ruta, titulo, descripcion, orden 
+       FROM habitacion_imagen 
+       WHERE id_habitacion = ? AND tipo_imagen = '360'
+       ORDER BY orden ASC`,
+      [id]
+    );
+
+    const imagenesFormateadas = imagenes.map(img => ({
+      id_imagen: img.id_imagen,
+      url: construirUrlImagen(extraerNombreArchivo(img.ruta), '360'),
+      titulo: img.titulo,
+      descripcion: img.descripcion,
+      orden: img.orden
+    }));
+
+    res.json(imagenesFormateadas);
+  } catch (error) {
+    console.error('Error al listar imágenes 360°:', error);
+    res.status(500).json({ message: 'Error al obtener imágenes 360°' });
+  }
+};
+
+// ============================
+// ELIMINAR IMAGEN 360°
+// ============================
+export const eliminarImagen360 = async (req, res) => {
+  const { id, idImagen } = req.params;
+
+  try {
+    // Verificar que la imagen existe y pertenece a la habitación
+    const [imagen] = await db.query(
+      "SELECT * FROM habitacion_imagen WHERE id_imagen = ? AND id_habitacion = ? AND tipo_imagen = '360'",
+      [idImagen, id]
+    );
+
+    if (imagen.length === 0) {
+      return res.status(404).json({ message: 'Imagen no encontrada' });
+    }
+
+    // Eliminar archivo físico
+    try {
+      const filePath = path.join('uploads', 'habitaciones', '360', extraerNombreArchivo(imagen[0].ruta));
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (e) {
+      console.log("Error eliminando archivo:", e.message);
+    }
+
+    // Eliminar registro
+    await db.query('DELETE FROM habitacion_imagen WHERE id_imagen = ?', [idImagen]);
+
+    res.json({ message: 'Imagen 360° eliminada exitosamente' });
+  } catch (error) {
+    console.error('Error al eliminar imagen 360°:', error);
+    res.status(500).json({ message: 'Error al eliminar imagen 360°' });
+  }
+};
+
+// ============================
+// ACTUALIZAR IMAGEN 360°
+// ============================
+export const actualizarImagen360 = async (req, res) => {
+  const { id, idImagen } = req.params;
+  const { titulo, descripcion, orden } = req.body;
+
+  try {
+    const [imagen] = await db.query(
+      "SELECT * FROM habitacion_imagen WHERE id_imagen = ? AND id_habitacion = ? AND tipo_imagen = '360'",
+      [idImagen, id]
+    );
+
+    if (imagen.length === 0) {
+      return res.status(404).json({ message: 'Imagen no encontrada' });
+    }
+
+    await db.query(
+      `UPDATE habitacion_imagen 
+       SET titulo = ?, descripcion = ?, orden = ?
+       WHERE id_imagen = ?`,
+      [titulo, descripcion, orden, idImagen]
+    );
+
+    res.json({ message: 'Imagen 360° actualizada exitosamente' });
+  } catch (error) {
+    console.error('Error al actualizar imagen 360°:', error);
+    res.status(500).json({ message: 'Error al actualizar imagen 360°' });
   }
 };

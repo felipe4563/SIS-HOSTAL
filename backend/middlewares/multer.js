@@ -1,38 +1,105 @@
-import multer from "multer";
-import path from "path";
-import fs from "fs";
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
-// Crear carpeta específica para habitaciones
-const habitacionesDir = "uploads/habitaciones";
-
-if (!fs.existsSync(habitacionesDir)) {
-  fs.mkdirSync(habitacionesDir, { recursive: true });
-  console.log(`📁 Carpeta '${habitacionesDir}' creada automáticamente`);
-}
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, habitacionesDir);
+// ============================
+// CONFIGURACIÓN PARA IMÁGENES NORMALES
+// ============================
+const storageNormal = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = 'uploads/habitaciones';
+    
+    // Crear carpeta si no existe
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    
+    cb(null, uploadPath);
   },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, `habitacion-${uniqueSuffix}${ext}`);
+  }
 });
 
+// ============================
+// CONFIGURACIÓN PARA IMÁGENES 360°
+// ============================
+const storage360 = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = 'uploads/habitaciones/360';
+    
+    // Crear carpeta si no existe
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, `360-${uniqueSuffix}${ext}`);
+  }
+});
+
+// ============================
+// FILTRO DE ARCHIVOS (solo imágenes)
+// ============================
 const fileFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png|gif|webp/;
-  const extname = allowedTypes.test(
-    path.extname(file.originalname).toLowerCase()
-  );
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = allowedTypes.test(file.mimetype);
 
-  if (mimetype && extname) return cb(null, true);
-  cb(new Error("Solo se permiten imágenes (JPEG, JPG, PNG, GIF, WEBP)"));
+  if (extname && mimetype) {
+    cb(null, true);
+  } else {
+    cb(new Error('Solo se permiten imágenes (jpeg, jpg, png, gif, webp)'), false);
+  }
 };
 
-export const upload = multer({ 
-  storage, 
-  fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB límite
+// ============================
+// EXPORTAR MULTER CONFIGURADOS
+// ============================
+
+// Para imágenes normales de habitaciones
+export const upload = multer({
+  storage: storageNormal,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB máximo
+  }
 });
+
+// Para imágenes 360°
+export const upload360 = multer({
+  storage: storage360,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 20 * 1024 * 1024 // 20MB máximo para imágenes 360° (son más pesadas)
+  }
+});
+
+// Middleware para manejar errores de multer
+export const handleMulterError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ 
+        message: 'El archivo es demasiado grande' 
+      });
+    }
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({ 
+        message: 'Demasiados archivos' 
+      });
+    }
+    return res.status(400).json({ message: err.message });
+  }
+  
+  if (err) {
+    return res.status(400).json({ message: err.message });
+  }
+  
+  next();
+};

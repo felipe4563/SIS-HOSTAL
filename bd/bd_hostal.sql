@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 01-12-2025 a las 13:54:01
+-- Tiempo de generación: 20-01-2026 a las 15:29:51
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -60,9 +60,7 @@ CREATE TABLE `habitacion` (
 --
 
 INSERT INTO `habitacion` (`id_habitacion`, `numero`, `id_tipo`, `precio_total`, `piso`, `estado`, `descripcion`) VALUES
-(2, '102', 1, 200.00, 2, 'disponible', 'ojitos azules'),
-(6, '1001', 1, 120.00, 2, 'disponible', 'ojitos'),
-(7, '2002', 1, 23.00, 1, 'disponible', 'sdfd');
+(14, '2002', 1, 305.00, 2, 'disponible', 'dsjd');
 
 -- --------------------------------------------------------
 
@@ -73,7 +71,11 @@ INSERT INTO `habitacion` (`id_habitacion`, `numero`, `id_tipo`, `precio_total`, 
 CREATE TABLE `habitacion_imagen` (
   `id_imagen` int(11) NOT NULL,
   `id_habitacion` int(11) NOT NULL,
-  `ruta` varchar(255) NOT NULL,
+  `ruta` varchar(500) DEFAULT NULL,
+  `tipo_imagen` enum('normal','360') DEFAULT 'normal',
+  `titulo` varchar(100) DEFAULT NULL,
+  `descripcion` text DEFAULT NULL,
+  `orden` int(11) DEFAULT 0,
   `es_portada` tinyint(1) DEFAULT 0,
   `fecha_subida` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -82,8 +84,10 @@ CREATE TABLE `habitacion_imagen` (
 -- Volcado de datos para la tabla `habitacion_imagen`
 --
 
-INSERT INTO `habitacion_imagen` (`id_imagen`, `id_habitacion`, `ruta`, `es_portada`, `fecha_subida`) VALUES
-(1, 7, 'uploads\\1764283445537-545907343.jpg', 0, '2025-11-27 18:44:05');
+INSERT INTO `habitacion_imagen` (`id_imagen`, `id_habitacion`, `ruta`, `tipo_imagen`, `titulo`, `descripcion`, `orden`, `es_portada`, `fecha_subida`) VALUES
+(17, 14, '1764667503916-54220089.jpg', 'normal', NULL, NULL, 0, 0, '2025-12-02 02:25:03'),
+(18, 14, '1764668466813-179191344.jpg', 'normal', NULL, NULL, 0, 0, '2025-12-02 02:41:06'),
+(19, 14, '1764668466813-285801486.jpg', 'normal', NULL, NULL, 0, 0, '2025-12-02 02:41:06');
 
 -- --------------------------------------------------------
 
@@ -303,7 +307,7 @@ CREATE TABLE `usuario` (
 --
 
 INSERT INTO `usuario` (`id_usuario`, `nombre`, `apellido`, `ci`, `correo`, `password`, `id_rol`, `fecha_registro`, `estado`) VALUES
-(1, 'Ruben', 'Felipe', '9391668', 'felipe@hostal.com', '$2b$10$YO9JRFwzc6fjbVsCAOx0KueQN.mcNzPkjWv1gWFiCnSPPq24sw4eS', 1, '2025-11-16 14:16:01', 1),
+(1, 'Ruben', 'Felipe', '9391668', 'felipe@hostal.com', '$2b$10$70z/iofFTDMvly2C/C9JXeWJt9LAhn4M8cs9WT7D4cXXE2Yz68pbm', 1, '2025-11-16 14:16:01', 1),
 (2, 'Judith', 'Herrera', '509080', 'judith@hostal.com', '$2b$10$6YOLF9weCwHS7DIsVidojuiUAbxcgSs4e8Ds/DjovxYbImH90zI/i', 2, '2025-11-16 15:12:42', 1),
 (3, 'Luis', 'Zambrana', '9867889', 'luis@hostal.com', '$2b$10$UYmlGuyv66hHVFlfHHjc/.OqRyFX5V3Z/C6D8lOUSYN6nxJ.vE1x6', 3, '2025-11-18 02:06:48', 1),
 (4, 'Lucia', 'Derosa', '9838292', 'lucia@hostal.com', '$2b$10$DW5RB3jGwjNgYrZZulAG6.S2uIRf.swTvMDdqzmyGoIwFCbWfZZei', 1, '2025-11-18 02:32:18', 1);
@@ -405,13 +409,13 @@ ALTER TABLE `cliente`
 -- AUTO_INCREMENT de la tabla `habitacion`
 --
 ALTER TABLE `habitacion`
-  MODIFY `id_habitacion` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `id_habitacion` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT de la tabla `habitacion_imagen`
 --
 ALTER TABLE `habitacion_imagen`
-  MODIFY `id_imagen` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `id_imagen` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT de la tabla `ocupacion`
