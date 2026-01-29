@@ -8,3 +8,4 @@ export const login = async (identificador, password) => {
     throw error.response?.data || { message: 'Error al iniciar sesión' };
   }
 };
+

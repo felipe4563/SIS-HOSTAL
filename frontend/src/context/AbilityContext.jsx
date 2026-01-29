@@ -1,4 +1,5 @@
 import { createContext } from "react";
-import { ability } from "../ability/ability";
+import { createContextualCan } from "@casl/react";
 
-export const AbilityContext = createContext(ability);
+export const AbilityContext = createContext();
+export const Can = createContextualCan(AbilityContext.Consumer);

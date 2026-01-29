@@ -1,119 +1,153 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useContext } from "react";
-import { AuthContext } from "./context/AuthContext.jsx";
+import { AuthContext } from "./context/AuthContext";
 
-import Login from "./pages/Login.jsx";
-import MainLayout from "./components/MainLayout.jsx";
-import Dashboard from "./pages/Dashboard.jsx";
-import Habitaciones from "./pages/Habitaciones.jsx";
-import Roles from "./pages/Roles.jsx";
-import Reservas from "./pages/Reservas.jsx";
-import Usuarios from "./pages/Usuarios.jsx";
-import Reportes from "./pages/Reportes.jsx";
-import Clientes from "./pages/clientes.jsx";
+// 🏠 PÁGINAS PÚBLICAS
+import Home from "./pages/home";
+import Login from "./pages/Login";
+import LoginCliente from "./pages/LoginCliente"; // 👈 NUEVO
 
-// Componente que protege rutas según permisos
-const ProtectedRoute = ({ permiso, children }) => {
-  const { usuario } = useContext(AuthContext);
+// 🔒 SISTEMA ADMINISTRATIVO
+import MainLayout from "./components/MainLayout";
+import Dashboard from "./pages/Dashboard";
+import Habitaciones from "./pages/Habitaciones";
+import Tipos from "./pages/Tipos";
+import Roles from "./pages/Roles";
+import Reservas from "./pages/Reservas";
+import Usuarios from "./pages/Usuarios";
+import Reportes from "./pages/Reportes";
+import Clientes from "./pages/Clientes";
 
-  if (!usuario) return <Navigate to="/login" replace />;
-  if (permiso && !usuario.permisos.includes(permiso)) {
-    return <Navigate to="/" replace />; // o mostrar un "No autorizado"
-  }
-
-  return children;
-};
+// 🔐 Ruta protegida con CASL
+import ProtectedRoute from "./components/protectedroute";
 
 function App() {
   const { usuario } = useContext(AuthContext);
 
+  // Verificar si es cliente o usuario del sistema
+  const esCliente = usuario?.tipo === 'cliente';
+  const esUsuarioSistema = usuario && !esCliente;
+
   return (
     <Routes>
-      {/* RUTA LOGIN */}
+      {/* 🏠 PÁGINA PRINCIPAL PÚBLICA */}
+      <Route path="/" element={<Home />} />
+
+      {/* 🔑 LOGIN PARA CLIENTES (Huéspedes) */}
       <Route
-        path="/login"
-        element={!usuario ? <Login /> : <Navigate to="/" replace />}
+        path="/login-cliente"
+        element={!usuario ? <LoginCliente /> : <Navigate to="/" replace />}
       />
 
-      {/* RUTAS PROTEGIDAS CON LAYOUT */}
+      {/* 🔑 LOGIN PARA PERSONAL DEL SISTEMA */}
       <Route
-        path="/"
-        element={usuario ? <MainLayout /> : <Navigate to="/login" replace />}
+        path="/login"
+        element={!esUsuarioSistema ? <Login /> : <Navigate to="/sistema" replace />}
+      />
+
+      {/* 🔒 SISTEMA ADMINISTRATIVO PROTEGIDO (solo usuarios del sistema) */}
+      <Route
+        path="/sistema"
+        element={
+          esUsuarioSistema ? (
+            <MainLayout />
+          ) : esCliente ? (
+            <Navigate to="/" replace />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
       >
-        {/* Redirigir a dashboard solo si tiene permiso */}
+        {/* Dashboard */}
         <Route
           index
           element={
-            usuario?.permisos.includes("dashboard.ver") ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
-
-        <Route
-          path="dashboard"
-          element={
-            <ProtectedRoute permiso="dashboard.ver">
+            <ProtectedRoute action="read" subject="Dashboard">
               <Dashboard />
             </ProtectedRoute>
           }
         />
+
+        {/* Habitaciones */}
         <Route
           path="habitaciones"
           element={
-            <ProtectedRoute permiso="habitacion.ver">
+            <ProtectedRoute action="read" subject="Habitacion">
               <Habitaciones />
             </ProtectedRoute>
           }
         />
+
+        {/* Tipos de Habitación */}
+        <Route
+          path="tipos"
+          element={
+            <ProtectedRoute action="read" subject="TipoHabitacion">
+              <Tipos />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Reservas */}
         <Route
           path="reservas"
           element={
-            <ProtectedRoute permiso="reserva.ver">
+            <ProtectedRoute action="read" subject="Reserva">
               <Reservas />
             </ProtectedRoute>
           }
         />
-        <Route
-          path="usuarios"
-          element={
-            <ProtectedRoute permiso="usuario.ver">
-              <Usuarios />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="reportes"
-          element={
-            <ProtectedRoute permiso="reporte.ver">
-              <Reportes />
-            </ProtectedRoute>
-          }
-        />
+
+        {/* Clientes */}
         <Route
           path="clientes"
           element={
-            <ProtectedRoute permiso="cliente.ver">
+            <ProtectedRoute action="read" subject="Cliente">
               <Clientes />
             </ProtectedRoute>
           }
         />
+
+        {/* Usuarios */}
+        <Route
+          path="usuarios"
+          element={
+            <ProtectedRoute action="read" subject="Usuario">
+              <Usuarios />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Roles */}
         <Route
           path="roles"
           element={
-            <ProtectedRoute permiso="rol.ver">
+            <ProtectedRoute action="read" subject="Role">
               <Roles />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Reportes */}
+        <Route
+          path="reportes"
+          element={
+            <ProtectedRoute action="read" subject="Reporte">
+              <Reportes />
             </ProtectedRoute>
           }
         />
       </Route>
 
-      {/* Ruta por defecto */}
+      {/* ⚠️ Rutas no encontradas */}
       <Route
         path="*"
-        element={<Navigate to={usuario ? "/" : "/login"} replace />}
+        element={
+          <Navigate 
+            to={esUsuarioSistema ? "/sistema" : "/"} 
+            replace 
+          />
+        }
       />
     </Routes>
   );

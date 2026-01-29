@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { listarTipos, crearTipo, eliminarTipo, actualizarTipo } from "../../services/tipo";
+import { listarTipos, crearTipo, eliminarTipo, actualizarTipo } from "../services/tipo";
 
 const TiposHabitacionLista = () => {
   const [tipos, setTipos] = useState([]);

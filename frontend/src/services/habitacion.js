@@ -1,7 +1,61 @@
 import api from "./api";
 
 // ============================
-// HABITACIONES - CRUD
+// HABITACIONES PÚBLICAS (sin autenticación)
+// ============================
+
+// Obtener habitaciones públicas con filtros (para Home)
+export const getHabitaciones = async (filtros = {}) => {
+  try {
+    const params = new URLSearchParams();
+    
+    if (filtros.id_tipo) params.append('id_tipo', filtros.id_tipo);
+    if (filtros.precio_min) params.append('precio_min', filtros.precio_min);
+    if (filtros.precio_max) params.append('precio_max', filtros.precio_max);
+    if (filtros.capacidad) params.append('capacidad', filtros.capacidad);
+    if (filtros.disponible) params.append('disponible', 'true');
+
+    const res = await api.get(`/habitaciones/publicas?${params.toString()}`);
+    return res.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al obtener habitaciones' };
+  }
+};
+
+// Obtener detalle público de una habitación
+export const getHabitacionDetalle = async (id) => {
+  try {
+    const res = await api.get(`/habitaciones/publicas/${id}`);
+    return res.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al obtener habitación' };
+  }
+};
+
+// Verificar disponibilidad (público)
+export const verificarDisponibilidad = async (id_habitacion, fecha_entrada, fecha_salida) => {
+  try {
+    const res = await api.get('/habitaciones/disponibilidad', {
+      params: { id_habitacion, fecha_entrada, fecha_salida }
+    });
+    return res.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al verificar disponibilidad' };
+  }
+};
+
+// Obtener tipos de habitación (público)
+export const getTiposHabitacion = async () => {
+  try {
+    const res = await api.get('/habitaciones/tipos');
+    return res.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al obtener tipos' };
+  }
+};
+
+// ============================
+// HABITACIONES - CRUD (protegido, requiere autenticación)
 // ============================
 
 export const listarHabitaciones = async () => {
@@ -68,7 +122,7 @@ export const cambiarEstadoHabitacion = async (id, estado) => {
 };
 
 // ============================
-// IMÁGENES 360°
+// IMÁGENES 360° (protegido)
 // ============================
 
 export const listarImagenes360 = async (idHabitacion) => {

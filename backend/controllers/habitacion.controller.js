@@ -540,3 +540,212 @@ export const actualizarImagen360 = async (req, res) => {
     res.status(500).json({ message: 'Error al actualizar imagen 360°' });
   }
 };
+
+
+// ============================
+// OBTENER HABITACIONES PÚBLICAS
+// ============================
+export const getHabitacionesPublicas = async (req, res) => {
+  try {
+    const { id_tipo, precio_min, precio_max, capacidad, disponible } = req.query;
+
+    let query = `
+      SELECT 
+        h.id_habitacion,
+        h.numero,
+        h.precio_total,
+        h.piso,
+        h.estado,
+        h.descripcion,
+        t.id_tipo,
+        t.nombre as tipo_nombre,
+        t.capacidad,
+        t.precio_base,
+        t.descripcion as tipo_descripcion,
+        GROUP_CONCAT(
+          DISTINCT CONCAT(
+            hi.id_imagen, '|',
+            hi.ruta, '|',
+            hi.tipo_imagen, '|',
+            hi.es_portada
+          ) SEPARATOR '###'
+        ) as imagenes
+      FROM habitacion h
+      INNER JOIN tipo t ON h.id_tipo = t.id_tipo
+      LEFT JOIN habitacion_imagen hi ON h.id_habitacion = hi.id_habitacion
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    // Filtros opcionales
+    if (id_tipo) {
+      query += ' AND h.id_tipo = ?';
+      params.push(id_tipo);
+    }
+
+    if (precio_min) {
+      query += ' AND h.precio_total >= ?';
+      params.push(precio_min);
+    }
+
+    if (precio_max) {
+      query += ' AND h.precio_total <= ?';
+      params.push(precio_max);
+    }
+
+    if (capacidad) {
+      query += ' AND t.capacidad >= ?';
+      params.push(capacidad);
+    }
+
+    if (disponible === 'true') {
+      query += " AND h.estado = 'disponible'";
+    }
+
+    query += ' GROUP BY h.id_habitacion ORDER BY h.numero';
+
+    const [habitaciones] = await db.query(query, params);
+
+    // Procesar imágenes y construir URLs completas
+    const habitacionesProcesadas = habitaciones.map(h => {
+      let imagenes = [];
+      if (h.imagenes) {
+        imagenes = h.imagenes.split('###').map(img => {
+          const [id_imagen, ruta, tipo_imagen, es_portada] = img.split('|');
+          
+          // 👇 CONSTRUIR URL COMPLETA AQUÍ EN EL BACKEND
+          const carpeta = tipo_imagen === '360' ? 'habitaciones/360' : 'habitaciones';
+          const urlCompleta = `uploads/${carpeta}/${ruta}`;
+          
+          return {
+            id_imagen: parseInt(id_imagen),
+            ruta: urlCompleta, // 👈 RUTA COMPLETA
+            tipo_imagen,
+            es_portada: parseInt(es_portada) === 1
+          };
+        });
+      }
+
+      return {
+        id_habitacion: h.id_habitacion,
+        numero: h.numero,
+        precio_total: parseFloat(h.precio_total),
+        piso: h.piso,
+        estado: h.estado,
+        descripcion: h.descripcion,
+        tipo: {
+          id_tipo: h.id_tipo,
+          nombre: h.tipo_nombre,
+          capacidad: h.capacidad,
+          precio_base: parseFloat(h.precio_base),
+          descripcion: h.tipo_descripcion
+        },
+        imagenes: imagenes.sort((a, b) => b.es_portada - a.es_portada)
+      };
+    });
+
+    res.json(habitacionesProcesadas);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al obtener habitaciones' });
+  }
+};
+
+// Obtener detalle de una habitación
+export const getHabitacionDetalle = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [habitaciones] = await db.query(
+      `SELECT 
+        h.*,
+        t.nombre as tipo_nombre,
+        t.capacidad,
+        t.precio_base,
+        t.descripcion as tipo_descripcion
+      FROM habitacion h
+      INNER JOIN tipo t ON h.id_tipo = t.id_tipo
+      WHERE h.id_habitacion = ?`,
+      [id]
+    );
+
+    if (habitaciones.length === 0) {
+      return res.status(404).json({ message: 'Habitación no encontrada' });
+    }
+
+    // Obtener imágenes
+    const [imagenes] = await db.query(
+      'SELECT * FROM habitacion_imagen WHERE id_habitacion = ? ORDER BY es_portada DESC, orden',
+      [id]
+    );
+
+    // 👇 CONSTRUIR URLs COMPLETAS
+    const imagenesConUrl = imagenes.map(img => {
+      const carpeta = img.tipo_imagen === '360' ? 'habitaciones/360' : 'habitaciones';
+      return {
+        ...img,
+        ruta: `uploads/${carpeta}/${img.ruta}` // 👈 RUTA COMPLETA
+      };
+    });
+
+    const habitacion = {
+      ...habitaciones[0],
+      tipo: {
+        nombre: habitaciones[0].tipo_nombre,
+        capacidad: habitaciones[0].capacidad,
+        precio_base: habitaciones[0].precio_base,
+        descripcion: habitaciones[0].tipo_descripcion
+      },
+      imagenes: imagenesConUrl
+    };
+
+    res.json(habitacion);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al obtener habitación' });
+  }
+};
+
+// Verificar disponibilidad
+export const verificarDisponibilidad = async (req, res) => {
+  try {
+    const { id_habitacion, fecha_entrada, fecha_salida } = req.query;
+
+    const [reservas] = await db.query(
+      `SELECT COUNT(*) as conflictos
+       FROM reserva
+       WHERE id_habitacion = ?
+         AND estado IN ('pendiente', 'confirmada')
+         AND (
+           (fecha_entrada <= ? AND fecha_salida >= ?) OR
+           (fecha_entrada <= ? AND fecha_salida >= ?) OR
+           (fecha_entrada >= ? AND fecha_salida <= ?)
+         )`,
+      [
+        id_habitacion,
+        fecha_salida, fecha_entrada,
+        fecha_salida, fecha_salida,
+        fecha_entrada, fecha_salida
+      ]
+    );
+
+    const disponible = reservas[0].conflictos === 0;
+
+    res.json({ disponible });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al verificar disponibilidad' });
+  }
+};
+
+// Obtener tipos de habitación
+export const getTiposHabitacion = async (req, res) => {
+  try {
+    const [tipos] = await db.query('SELECT * FROM tipo ORDER BY nombre');
+    res.json(tipos);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al obtener tipos' });
+  }
+};

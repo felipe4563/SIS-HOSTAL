@@ -155,7 +155,8 @@ MariaDB [bd_hostal]> describe usuario;
 | id_rol         | int(11)      | YES  | MUL | NULL                |                |
 | fecha_registro | datetime     | YES  |     | current_timestamp() |                |
 | estado         | tinyint(1)   | YES  |     | 1                   |                |
+| google_id      | varchar(100) | YES  |     | NULL                |                |
 +----------------+--------------+------+-----+---------------------+----------------+
-9 rows in set (0.003 sec)
+10 rows in set (0.016 sec)
 
 MariaDB [bd_hostal]>

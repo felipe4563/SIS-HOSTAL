@@ -13,17 +13,37 @@ import {
   subirImagenes360,
   listarImagenes360,
   eliminarImagen360,
-  actualizarImagen360
+  actualizarImagen360,
+  getHabitacionesPublicas,
+  getHabitacionDetalle,
+  verificarDisponibilidad,
+  getTiposHabitacion
 } from '../controllers/habitacion.controller.js';
-import { upload, upload360 } from '../middlewares/multer.js';
+import { upload, upload360 } from '../config/multer.js';
 
 const router = express.Router();
 
 // ============================
-// RUTAS DE HABITACIONES
+// ⚠️ RUTAS PÚBLICAS (SIN AUTENTICACIÓN) - DEBEN IR PRIMERO
 // ============================
 
-// Listar todas las habitaciones
+// Obtener habitaciones públicas (para el home)
+router.get('/publicas', getHabitacionesPublicas);
+
+// Obtener tipos de habitación (público)
+router.get('/tipos', getTiposHabitacion);
+
+// Verificar disponibilidad (público)
+router.get('/disponibilidad', verificarDisponibilidad);
+
+// Obtener detalle público de habitación
+router.get('/publicas/:id', getHabitacionDetalle);
+
+// ============================
+// 🔒 RUTAS PROTEGIDAS (CON AUTENTICACIÓN)
+// ============================
+
+// Listar todas las habitaciones (admin/recepcionista)
 router.get('/', 
   authMiddleware, 
   initAbility, 
@@ -31,7 +51,7 @@ router.get('/',
   listarHabitaciones
 );
 
-// Obtener habitación por id
+// Obtener habitación por id (admin/recepcionista)
 router.get('/:id', 
   authMiddleware, 
   initAbility, 

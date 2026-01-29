@@ -1,12 +1,16 @@
 import { useState } from "react";
 import HabitacionesLista from "../pages/habitacion/HabitacionesLista.jsx";
 import HabitacionForm from "../pages/habitacion/HabitacionesForm.jsx";
-import TiposHabitacionLista from "../pages/habitacion/TiposHabitacionLista.jsx";
+import Imagenes360Manager from "./habitacion/imagenes360manager.jsx";
 
 const Habitaciones = () => {
   const [activeTab, setActiveTab] = useState("habitaciones");
   const [editando, setEditando] = useState(null);
   const [reload, setReload] = useState(false);
+
+  // Estado para el modal de imágenes 360°
+  const [show360Modal, setShow360Modal] = useState(false);
+  const [habitacion360, setHabitacion360] = useState(null);
 
   // Cuando se hace click en "Editar"
   const handleEditHabitacion = (habitacion) => {
@@ -14,11 +18,28 @@ const Habitaciones = () => {
     setActiveTab("formulario");
   };
 
+  // Cuando se hace click en "Tour 360°"
+  const handleTour360 = (habitacion) => {
+    setHabitacion360(habitacion);
+    setShow360Modal(true);
+  };
+
+  // Cerrar modal 360°
+  const handleClose360 = () => {
+    setShow360Modal(false);
+    setHabitacion360(null);
+  };
+
   // Después de guardar la habitación (crear o editar)
   const handleHabitacionSaved = () => {
     setEditando(null);
-    setReload(!reload); // forzar recarga de la lista
+    setReload(!reload);
     setActiveTab("habitaciones");
+  };
+
+  // Cuando se actualiza algo en el modal 360°
+  const handleUpdate360 = () => {
+    setReload(!reload);
   };
 
   return (
@@ -26,11 +47,11 @@ const Habitaciones = () => {
       <h2 className="text-2xl font-bold mb-6">🏨 Gestión de Habitaciones</h2>
 
       {/* Tabs */}
-      <div className="flex border-b mb-4">
+      <div className="flex flex-wrap border-b mb-4">
         {[
           { id: "habitaciones", label: "🛏️ Habitaciones" },
-          { id: "formulario", label: "📝 Registrar/Editar Habitación" },
-          { id: "tipos", label: "🏷️ Tipos de Habitación" },
+          { id: "formulario", label: "📝 Registrar/Editar" },
+        
         ].map((tab) => (
           <button
             key={tab.id}
@@ -38,7 +59,7 @@ const Habitaciones = () => {
               setActiveTab(tab.id);
               if (tab.id === "formulario") setEditando(null);
             }}
-            className={`px-4 py-2 border-b-2 font-medium ${
+            className={`px-4 py-2 border-b-2 font-medium transition-colors ${
               activeTab === tab.id
                 ? "border-blue-600 text-blue-600"
                 : "border-transparent text-gray-500 hover:text-gray-700"
@@ -51,17 +72,30 @@ const Habitaciones = () => {
 
       {/* Contenido según la pestaña activa */}
       {activeTab === "habitaciones" && (
-        <HabitacionesLista onEdit={handleEditHabitacion} reload={reload} />
+        <HabitacionesLista 
+          onEdit={handleEditHabitacion} 
+          onTour360={handleTour360}  // 👈 Pasamos la función para abrir el modal
+          reload={reload} 
+        />
       )}
 
       {activeTab === "formulario" && (
         <HabitacionForm
-          id={editando?.id_habitacion} // pasa el id de la habitación si se está editando
-          onSuccess={handleHabitacionSaved} // función que se llama después de guardar
+          id={editando?.id_habitacion}
+          onSuccess={handleHabitacionSaved}
+          onCancel={() => setActiveTab("habitaciones")}
         />
       )}
 
-      {activeTab === "tipos" && <TiposHabitacionLista />}
+
+      {/* Modal de Imágenes 360° */}
+      {show360Modal && habitacion360 && (
+        <Imagenes360Manager
+          habitacion={habitacion360}
+          onClose={handleClose360}
+          onUpdate={handleUpdate360}
+        />
+      )}
     </div>
   );
 };
