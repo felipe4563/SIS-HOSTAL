@@ -5,7 +5,11 @@ import { AuthContext } from "./context/AuthContext";
 // 🏠 PÁGINAS PÚBLICAS
 import Home from "./pages/home";
 import Login from "./pages/Login";
-import LoginCliente from "./pages/LoginCliente"; // 👈 NUEVO
+import LoginCliente from "./pages/LoginCliente";
+
+// 👤 PÁGINAS DE CLIENTE
+import MisReservas from "./pages/Home/Misreservas";
+import MiPerfil from "./pages/Home/Miperfil";
 
 // 🔒 SISTEMA ADMINISTRATIVO
 import MainLayout from "./components/MainLayout";
@@ -43,6 +47,29 @@ function App() {
       <Route
         path="/login"
         element={!esUsuarioSistema ? <Login /> : <Navigate to="/sistema" replace />}
+      />
+
+      {/* 👤 PÁGINAS DE CLIENTE (solo accesibles si está logueado como cliente) */}
+      <Route
+        path="/mis-reservas"
+        element={
+          esCliente ? (
+            <MisReservas />
+          ) : (
+            <Navigate to="/login-cliente" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/mi-perfil"
+        element={
+          esCliente ? (
+            <MiPerfil />
+          ) : (
+            <Navigate to="/login-cliente" replace />
+          )
+        }
       />
 
       {/* 🔒 SISTEMA ADMINISTRATIVO PROTEGIDO (solo usuarios del sistema) */}

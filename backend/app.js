@@ -11,7 +11,7 @@ import permisosRoutes from './routes/permiso.routes.js'
 import habitacionRoutes from './routes/habitacion.routes.js'
 import tipoRoutes from './routes/tipo.routes.js'
 import reservaRoutes from './routes/reserva.route.js';
-import { authMiddleware } from './middlewares/authMiddleware.js';
+import clienteRoutes from './routes/cliente.routes.js';
 import { defineAbilitiesFor } from './config/abilities.js';
 
 dotenv.config();
@@ -59,6 +59,7 @@ app.use('/api/permisos', permisosRoutes);
 app.use('/api/habitaciones', habitacionRoutes);
 app.use('/api/tipos', tipoRoutes);
 app.use('/api/reservas', reservaRoutes);
+app.use('/api/clientes', clienteRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const PORT = process.env.PORT || 4000;

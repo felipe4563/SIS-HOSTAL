@@ -3,7 +3,10 @@ import { authMiddleware } from '../middlewares/authMiddleware.js';
 import {
   crearReserva,
   obtenerMisReservas,
-  cancelarReserva
+  cancelarReserva,
+  obtenerTodasReservas,
+  actualizarEstadoReserva,
+  eliminarReserva
 } from '../controllers/reserva.controller.js';
 
 const router = express.Router();
@@ -16,5 +19,15 @@ router.get('/mis-reservas', authMiddleware, obtenerMisReservas);
 
 // Cancelar reserva
 router.patch('/:id/cancelar', authMiddleware, cancelarReserva);
+
+
+// Obtener TODAS las reservas (admin)
+router.get('/', authMiddleware, obtenerTodasReservas);
+
+// Actualizar estado de reserva (admin)
+router.patch('/:id/estado', authMiddleware, actualizarEstadoReserva);
+
+// Eliminar reserva (admin)
+router.delete('/:id', authMiddleware, eliminarReserva);
 
 export default router;
