@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 02-02-2026 a las 07:28:45
+-- Tiempo de generación: 02-02-2026 a las 13:08:56
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -51,6 +51,92 @@ INSERT INTO `cliente` (`id_cliente`, `nombre`, `apellido`, `ci`, `correo`, `celu
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `consulta_precio`
+--
+
+CREATE TABLE `consulta_precio` (
+  `id_consulta` int(11) NOT NULL,
+  `id_habitacion` int(11) NOT NULL,
+  `fecha_consulta` datetime DEFAULT current_timestamp(),
+  `fecha_entrada` date NOT NULL,
+  `fecha_salida` date NOT NULL,
+  `noches` int(11) NOT NULL,
+  `precio_calculado` decimal(10,2) NOT NULL,
+  `precio_base` decimal(10,2) NOT NULL,
+  `ajustes` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`ajustes`)),
+  `ocupacion_porcentaje` decimal(5,2) DEFAULT NULL,
+  `convirtio_en_reserva` tinyint(1) DEFAULT 0,
+  `id_reserva` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Volcado de datos para la tabla `consulta_precio`
+--
+
+INSERT INTO `consulta_precio` (`id_consulta`, `id_habitacion`, `fecha_consulta`, `fecha_entrada`, `fecha_salida`, `noches`, `precio_calculado`, `precio_base`, `ajustes`, `ocupacion_porcentaje`, `convirtio_en_reserva`, `id_reserva`) VALUES
+(1, 15, '2026-02-02 02:50:59', '2026-03-15', '2026-03-17', 2, 1800.00, 900.00, '{\"temporada\":-5,\"dia_semana\":20,\"anticipacion\":-5,\"ocupacion\":-10,\"duracion\":0,\"eventos\":0}', 0.00, 0, NULL),
+(2, 15, '2026-02-02 02:52:42', '2026-12-24', '2026-12-26', 2, 2790.00, 900.00, '{\"temporada\":30,\"dia_semana\":0,\"anticipacion\":-10,\"ocupacion\":-10,\"duracion\":0,\"eventos\":45}', 0.00, 0, NULL),
+(3, 17, '2026-02-02 03:01:01', '2026-02-07', '2026-02-08', 1, 135.00, 100.00, '{\"temporada\":15,\"dia_semana\":20,\"anticipacion\":10,\"ocupacion\":-10,\"duracion\":0,\"eventos\":0}', 0.00, 0, NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `evento_especial`
+--
+
+CREATE TABLE `evento_especial` (
+  `id_evento` int(11) NOT NULL,
+  `nombre` varchar(150) NOT NULL,
+  `fecha_inicio` date NOT NULL,
+  `fecha_fin` date NOT NULL,
+  `ajuste_precio` decimal(5,2) DEFAULT 0.00 COMMENT 'Porcentaje (ej: 40.00 = +40%)',
+  `categoria` enum('feriado','festival','deportivo','congreso','cultural','otro') DEFAULT 'otro',
+  `descripcion` text DEFAULT NULL,
+  `fuente` varchar(50) DEFAULT NULL COMMENT 'feriados_api, manual, google_calendar',
+  `fuente_id` varchar(100) DEFAULT NULL COMMENT 'ID único del evento',
+  `asistencia_estimada` int(11) DEFAULT NULL,
+  `ubicacion` varchar(255) DEFAULT 'Cochabamba, Bolivia',
+  `impacto_calculado` enum('bajo','medio','alto','muy_alto') DEFAULT 'medio',
+  `url_fuente` text DEFAULT NULL,
+  `fecha_sincronizacion` datetime DEFAULT NULL,
+  `verificado` tinyint(1) DEFAULT 0,
+  `activo` tinyint(1) DEFAULT 1 COMMENT '1=futuro, 0=pasado/historial',
+  `estado` tinyint(1) DEFAULT 1,
+  `fecha_creacion` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Volcado de datos para la tabla `evento_especial`
+--
+
+INSERT INTO `evento_especial` (`id_evento`, `nombre`, `fecha_inicio`, `fecha_fin`, `ajuste_precio`, `categoria`, `descripcion`, `fuente`, `fuente_id`, `asistencia_estimada`, `ubicacion`, `impacto_calculado`, `url_fuente`, `fecha_sincronizacion`, `verificado`, `activo`, `estado`, `fecha_creacion`) VALUES
+(1, 'Fiesta de la Virgen de Candelaria 2026', '2026-02-02', '2026-02-02', 30.00, 'feriado', 'Fiesta de la Virgen de Candelaria - Feriado nacional de 2026', 'feriados_api', 'feriado_2026-02-02', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(2, 'Feriado por Carnaval 2026', '2026-02-16', '2026-02-16', 35.00, 'feriado', 'Feriado por Carnaval - Feriado nacional de 2026', 'feriados_api', 'feriado_2026-02-16', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(3, 'Feriado por Carnaval 2026', '2026-02-17', '2026-02-17', 35.00, 'feriado', 'Feriado por Carnaval - Feriado nacional de 2026', 'feriados_api', 'feriado_2026-02-17', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(4, 'Viernes Santo 2026', '2026-04-03', '2026-04-03', 30.00, 'feriado', 'Viernes Santo - Feriado nacional de 2026', 'feriados_api', 'feriado_2026-04-03', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(5, 'Dia del trabajo 2026', '2026-05-01', '2026-05-01', 30.00, 'feriado', 'Dia del trabajo - Feriado nacional de 2026', 'feriados_api', 'feriado_2026-05-01', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(6, 'Corpus Christi 2026', '2026-06-04', '2026-06-04', 30.00, 'feriado', 'Corpus Christi - Feriado nacional de 2026', 'feriados_api', 'feriado_2026-06-04', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(7, 'Año Nuevo Andino 2026', '2026-06-21', '2026-06-21', 45.00, 'feriado', 'Año Nuevo Andino - Feriado nacional de 2026', 'feriados_api', 'feriado_2026-06-21', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(8, 'Día de la Revolución Agraria 2026', '2026-08-02', '2026-08-02', 30.00, 'feriado', 'Día de la Revolución Agraria - Feriado nacional de 2026', 'feriados_api', 'feriado_2026-08-02', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(9, 'Dia de la Patria 2026', '2026-08-06', '2026-08-06', 30.00, 'feriado', 'Dia de la Patria - Feriado nacional de 2026', 'feriados_api', 'feriado_2026-08-06', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(10, 'Todos Santos 2026', '2026-11-02', '2026-11-02', 30.00, 'feriado', 'Todos Santos - Feriado nacional de 2026', 'feriados_api', 'feriado_2026-11-02', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(11, 'Navidad 2026', '2026-12-25', '2026-12-25', 45.00, 'feriado', 'Navidad - Feriado nacional de 2026', 'feriados_api', 'feriado_2026-12-25', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(12, 'Año Nuevo 2027', '2027-01-01', '2027-01-01', 45.00, 'feriado', 'Año Nuevo - Feriado nacional de 2027', 'feriados_api', 'feriado_2027-01-01', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(13, 'Fiesta de la Virgen de Candelaria 2027', '2027-02-02', '2027-02-02', 30.00, 'feriado', 'Fiesta de la Virgen de Candelaria - Feriado nacional de 2027', 'feriados_api', 'feriado_2027-02-02', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(14, 'Feriado por Carnaval 2027', '2027-02-08', '2027-02-08', 35.00, 'feriado', 'Feriado por Carnaval - Feriado nacional de 2027', 'feriados_api', 'feriado_2027-02-08', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(15, 'Feriado por Carnaval 2027', '2027-02-09', '2027-02-09', 35.00, 'feriado', 'Feriado por Carnaval - Feriado nacional de 2027', 'feriados_api', 'feriado_2027-02-09', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(16, 'Viernes Santo 2027', '2027-03-26', '2027-03-26', 30.00, 'feriado', 'Viernes Santo - Feriado nacional de 2027', 'feriados_api', 'feriado_2027-03-26', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(17, 'Dia del trabajo 2027', '2027-05-01', '2027-05-01', 30.00, 'feriado', 'Dia del trabajo - Feriado nacional de 2027', 'feriados_api', 'feriado_2027-05-01', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(18, 'Corpus Christi 2027', '2027-05-27', '2027-05-27', 30.00, 'feriado', 'Corpus Christi - Feriado nacional de 2027', 'feriados_api', 'feriado_2027-05-27', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(19, 'Año Nuevo Andino 2027', '2027-06-21', '2027-06-21', 45.00, 'feriado', 'Año Nuevo Andino - Feriado nacional de 2027', 'feriados_api', 'feriado_2027-06-21', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(20, 'Día de la Revolución Agraria 2027', '2027-08-02', '2027-08-02', 30.00, 'feriado', 'Día de la Revolución Agraria - Feriado nacional de 2027', 'feriados_api', 'feriado_2027-08-02', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(21, 'Dia de la Patria 2027', '2027-08-06', '2027-08-06', 30.00, 'feriado', 'Dia de la Patria - Feriado nacional de 2027', 'feriados_api', 'feriado_2027-08-06', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(22, 'Todos Santos 2027', '2027-11-02', '2027-11-02', 30.00, 'feriado', 'Todos Santos - Feriado nacional de 2027', 'feriados_api', 'feriado_2027-11-02', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07'),
+(23, 'Navidad 2027', '2027-12-25', '2027-12-25', 45.00, 'feriado', 'Navidad - Feriado nacional de 2027', 'feriados_api', 'feriado_2027-12-25', NULL, 'Bolivia (Nacional)', 'alto', NULL, '2026-02-02 03:14:07', 1, 1, 1, '2026-02-02 03:14:07');
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `habitacion`
 --
 
@@ -71,7 +157,8 @@ CREATE TABLE `habitacion` (
 INSERT INTO `habitacion` (`id_habitacion`, `numero`, `id_tipo`, `precio_total`, `piso`, `estado`, `descripcion`) VALUES
 (14, '2002', 1, 305.00, 2, 'disponible', 'dsjd'),
 (15, '2003', 1, 900.00, 2, 'disponible', 'mkih'),
-(16, '2005', 2, 3000.00, 2, 'disponible', 'dsds');
+(16, '2005', 2, 3000.00, 2, 'disponible', 'dsds'),
+(17, '2009', 1, 100.00, 3, 'disponible', 'ddfsdfsf');
 
 -- --------------------------------------------------------
 
@@ -104,7 +191,33 @@ INSERT INTO `habitacion_imagen` (`id_imagen`, `id_habitacion`, `ruta`, `tipo_ima
 (22, 15, '360-1769038544948-577407138.jpg', '360', NULL, NULL, 1, 0, '2026-01-21 19:35:44'),
 (23, 16, 'habitacion-1769039016280-751819648.jpg', 'normal', NULL, NULL, 1, 0, '2026-01-21 19:43:36'),
 (24, 16, '360-1769039028898-807440592.jpg', '360', NULL, NULL, 1, 0, '2026-01-21 19:43:48'),
-(25, 16, '360-1769652226032-629308961.jpg', '360', 'vista baño', 'dfdfdf', 2, 0, '2026-01-28 22:03:46');
+(25, 16, '360-1769652226032-629308961.jpg', '360', 'vista baño', 'dfdfdf', 2, 0, '2026-01-28 22:03:46'),
+(26, 17, '360-1770015586880-973401471.jpg', '360', NULL, NULL, 1, 0, '2026-02-02 02:59:46'),
+(27, 17, 'habitacion-1770015598077-843021901.jpeg', 'normal', NULL, NULL, 1, 0, '2026-02-02 02:59:58');
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `log_sincronizacion`
+--
+
+CREATE TABLE `log_sincronizacion` (
+  `id_log` int(11) NOT NULL,
+  `fuente` varchar(50) DEFAULT NULL,
+  `eventos_encontrados` int(11) DEFAULT NULL,
+  `eventos_nuevos` int(11) DEFAULT NULL,
+  `eventos_actualizados` int(11) DEFAULT NULL,
+  `errores` text DEFAULT NULL,
+  `fecha_sincronizacion` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Volcado de datos para la tabla `log_sincronizacion`
+--
+
+INSERT INTO `log_sincronizacion` (`id_log`, `fuente`, `eventos_encontrados`, `eventos_nuevos`, `eventos_actualizados`, `errores`, `fecha_sincronizacion`) VALUES
+(1, 'sincronizacion_semanal', 23, 23, 0, NULL, '2026-02-02 03:11:40'),
+(2, 'sincronizacion_semanal', 23, 23, 0, NULL, '2026-02-02 03:14:07');
 
 -- --------------------------------------------------------
 
@@ -191,20 +304,29 @@ CREATE TABLE `reserva` (
   `fecha_entrada` datetime NOT NULL,
   `fecha_salida` datetime NOT NULL,
   `total` decimal(10,2) NOT NULL,
-  `estado` enum('pendiente','confirmada','cancelada','finalizada') DEFAULT 'pendiente'
+  `precio_base` decimal(10,2) DEFAULT NULL,
+  `estado` enum('pendiente','confirmada','cancelada','finalizada') DEFAULT 'pendiente',
+  `ajuste_temporada` decimal(5,2) DEFAULT 0.00,
+  `ajuste_ocupacion` decimal(5,2) DEFAULT 0.00,
+  `ajuste_anticipacion` decimal(5,2) DEFAULT 0.00,
+  `ajuste_duracion` decimal(5,2) DEFAULT 0.00,
+  `ajuste_dia_semana` decimal(5,2) DEFAULT 0.00,
+  `ajuste_eventos` decimal(5,2) DEFAULT 0.00,
+  `precio_sugerido` decimal(10,2) DEFAULT NULL,
+  `fecha_creacion` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Volcado de datos para la tabla `reserva`
 --
 
-INSERT INTO `reserva` (`id_reserva`, `id_cliente`, `id_habitacion`, `fecha_entrada`, `fecha_salida`, `total`, `estado`) VALUES
-(1, 1, 16, '2026-01-29 00:00:00', '2026-01-31 00:00:00', 6000.00, 'pendiente'),
-(2, 1, 15, '2026-01-30 00:00:00', '2026-01-31 00:00:00', 900.00, 'pendiente'),
-(3, 2, 15, '2026-02-05 00:00:00', '2026-02-06 00:00:00', 900.00, 'pendiente'),
-(4, 1, 15, '2026-02-26 00:00:00', '2026-02-28 00:00:00', 1800.00, 'confirmada'),
-(5, 2, 15, '2026-02-07 00:00:00', '2026-02-20 00:00:00', 11700.00, 'cancelada'),
-(6, 2, 15, '2026-02-23 00:00:00', '2026-02-25 00:00:00', 1800.00, 'pendiente');
+INSERT INTO `reserva` (`id_reserva`, `id_cliente`, `id_habitacion`, `fecha_entrada`, `fecha_salida`, `total`, `precio_base`, `estado`, `ajuste_temporada`, `ajuste_ocupacion`, `ajuste_anticipacion`, `ajuste_duracion`, `ajuste_dia_semana`, `ajuste_eventos`, `precio_sugerido`, `fecha_creacion`) VALUES
+(1, 1, 16, '2026-01-29 00:00:00', '2026-01-31 00:00:00', 6000.00, NULL, 'pendiente', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NULL, '2026-02-02 02:34:13'),
+(2, 1, 15, '2026-01-30 00:00:00', '2026-01-31 00:00:00', 900.00, NULL, 'pendiente', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NULL, '2026-02-02 02:34:13'),
+(3, 2, 15, '2026-02-05 00:00:00', '2026-02-06 00:00:00', 900.00, NULL, 'pendiente', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NULL, '2026-02-02 02:34:13'),
+(4, 1, 15, '2026-02-26 00:00:00', '2026-02-28 00:00:00', 1800.00, NULL, 'confirmada', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NULL, '2026-02-02 02:34:13'),
+(5, 2, 15, '2026-02-07 00:00:00', '2026-02-20 00:00:00', 11700.00, NULL, 'cancelada', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NULL, '2026-02-02 02:34:13'),
+(6, 2, 15, '2026-02-23 00:00:00', '2026-02-25 00:00:00', 1800.00, NULL, 'pendiente', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NULL, '2026-02-02 02:34:13');
 
 -- --------------------------------------------------------
 
@@ -301,6 +423,33 @@ INSERT INTO `rol_permiso` (`id_rol`, `id_permiso`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `temporada`
+--
+
+CREATE TABLE `temporada` (
+  `id_temporada` int(11) NOT NULL,
+  `nombre` varchar(50) NOT NULL,
+  `mes_inicio` int(11) NOT NULL COMMENT '1-12',
+  `mes_fin` int(11) NOT NULL COMMENT '1-12',
+  `ajuste_precio` decimal(5,2) DEFAULT 0.00,
+  `descripcion` text DEFAULT NULL,
+  `activo` tinyint(1) DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Volcado de datos para la tabla `temporada`
+--
+
+INSERT INTO `temporada` (`id_temporada`, `nombre`, `mes_inicio`, `mes_fin`, `ajuste_precio`, `descripcion`, `activo`) VALUES
+(1, 'Alta - Fin de Año', 12, 12, 30.00, 'Diciembre - Vacaciones fin de año', 1),
+(2, 'Alta - Invierno', 7, 8, 30.00, 'Julio-Agosto - Vacaciones escolares', 1),
+(3, 'Media - Verano', 1, 2, 15.00, 'Enero-Febrero', 1),
+(4, 'Media - Primavera', 9, 11, 10.00, 'Septiembre-Noviembre', 1),
+(5, 'Baja', 3, 6, -5.00, 'Marzo-Junio - Incentivo reservas', 1);
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `tipo`
 --
 
@@ -364,6 +513,25 @@ ALTER TABLE `cliente`
   ADD UNIQUE KEY `ci` (`ci`);
 
 --
+-- Indices de la tabla `consulta_precio`
+--
+ALTER TABLE `consulta_precio`
+  ADD PRIMARY KEY (`id_consulta`),
+  ADD KEY `id_reserva` (`id_reserva`),
+  ADD KEY `idx_fecha_entrada` (`fecha_entrada`),
+  ADD KEY `idx_habitacion` (`id_habitacion`);
+
+--
+-- Indices de la tabla `evento_especial`
+--
+ALTER TABLE `evento_especial`
+  ADD PRIMARY KEY (`id_evento`),
+  ADD UNIQUE KEY `idx_fuente_id` (`fuente`,`fuente_id`),
+  ADD KEY `idx_fechas` (`fecha_inicio`,`fecha_fin`),
+  ADD KEY `idx_activo` (`activo`),
+  ADD KEY `idx_fuente` (`fuente`);
+
+--
 -- Indices de la tabla `habitacion`
 --
 ALTER TABLE `habitacion`
@@ -377,6 +545,12 @@ ALTER TABLE `habitacion`
 ALTER TABLE `habitacion_imagen`
   ADD PRIMARY KEY (`id_imagen`),
   ADD KEY `id_habitacion` (`id_habitacion`);
+
+--
+-- Indices de la tabla `log_sincronizacion`
+--
+ALTER TABLE `log_sincronizacion`
+  ADD PRIMARY KEY (`id_log`);
 
 --
 -- Indices de la tabla `ocupacion`
@@ -421,6 +595,12 @@ ALTER TABLE `rol_permiso`
   ADD KEY `id_permiso` (`id_permiso`);
 
 --
+-- Indices de la tabla `temporada`
+--
+ALTER TABLE `temporada`
+  ADD PRIMARY KEY (`id_temporada`);
+
+--
 -- Indices de la tabla `tipo`
 --
 ALTER TABLE `tipo`
@@ -446,16 +626,34 @@ ALTER TABLE `cliente`
   MODIFY `id_cliente` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
+-- AUTO_INCREMENT de la tabla `consulta_precio`
+--
+ALTER TABLE `consulta_precio`
+  MODIFY `id_consulta` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT de la tabla `evento_especial`
+--
+ALTER TABLE `evento_especial`
+  MODIFY `id_evento` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+
+--
 -- AUTO_INCREMENT de la tabla `habitacion`
 --
 ALTER TABLE `habitacion`
-  MODIFY `id_habitacion` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `id_habitacion` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- AUTO_INCREMENT de la tabla `habitacion_imagen`
 --
 ALTER TABLE `habitacion_imagen`
-  MODIFY `id_imagen` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
+  MODIFY `id_imagen` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
+
+--
+-- AUTO_INCREMENT de la tabla `log_sincronizacion`
+--
+ALTER TABLE `log_sincronizacion`
+  MODIFY `id_log` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT de la tabla `ocupacion`
@@ -488,6 +686,12 @@ ALTER TABLE `rol`
   MODIFY `id_rol` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
+-- AUTO_INCREMENT de la tabla `temporada`
+--
+ALTER TABLE `temporada`
+  MODIFY `id_temporada` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+
+--
 -- AUTO_INCREMENT de la tabla `tipo`
 --
 ALTER TABLE `tipo`
@@ -502,6 +706,13 @@ ALTER TABLE `usuario`
 --
 -- Restricciones para tablas volcadas
 --
+
+--
+-- Filtros para la tabla `consulta_precio`
+--
+ALTER TABLE `consulta_precio`
+  ADD CONSTRAINT `consulta_precio_ibfk_1` FOREIGN KEY (`id_habitacion`) REFERENCES `habitacion` (`id_habitacion`),
+  ADD CONSTRAINT `consulta_precio_ibfk_2` FOREIGN KEY (`id_reserva`) REFERENCES `reserva` (`id_reserva`) ON DELETE SET NULL;
 
 --
 -- Filtros para la tabla `habitacion`

@@ -14,6 +14,7 @@
   "description": "",
   "dependencies": {
     "@casl/ability": "^6.7.3",
+    "axios": "^1.13.4",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -21,7 +22,8 @@
     "google-auth-library": "^10.5.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
-    "mysql2": "^3.15.3"
+    "mysql2": "^3.15.3",
+    "node-cron": "^4.2.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
