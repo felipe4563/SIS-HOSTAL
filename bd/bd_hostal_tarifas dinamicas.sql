@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 02-02-2026 a las 13:08:56
+-- Tiempo de generación: 05-02-2026 a las 12:41:32
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -46,7 +46,8 @@ CREATE TABLE `cliente` (
 INSERT INTO `cliente` (`id_cliente`, `nombre`, `apellido`, `ci`, `correo`, `celular`, `direccion`, `fecha_registro`, `estado`) VALUES
 (1, 'Felipe', 'Mejia', NULL, 'ruben16felipe@gmail.com', NULL, NULL, '2026-01-29 00:19:14', 1),
 (2, 'Felipe', 'Mejia', '9391668', 'felipemejia7490@gmail.com', '74819122', 'Av. Heroinas ', '2026-01-29 00:24:27', 1),
-(3, 'RUBEN', 'FELIPE', '9857114', 'ruben16felipe2003@gmail.com', '74819166', 'Av. jitos', '2026-01-29 01:14:41', 1);
+(3, 'RUBEN', 'FELIPE', '9857114', 'ruben16felipe2003@gmail.com', '74819166', 'Av. jitos', '2026-01-29 01:14:41', 1),
+(4, 'Judith', '', NULL, 'j24989554@gmail.com', NULL, NULL, '2026-02-02 10:09:40', 1);
 
 -- --------------------------------------------------------
 
@@ -76,7 +77,10 @@ CREATE TABLE `consulta_precio` (
 INSERT INTO `consulta_precio` (`id_consulta`, `id_habitacion`, `fecha_consulta`, `fecha_entrada`, `fecha_salida`, `noches`, `precio_calculado`, `precio_base`, `ajustes`, `ocupacion_porcentaje`, `convirtio_en_reserva`, `id_reserva`) VALUES
 (1, 15, '2026-02-02 02:50:59', '2026-03-15', '2026-03-17', 2, 1800.00, 900.00, '{\"temporada\":-5,\"dia_semana\":20,\"anticipacion\":-5,\"ocupacion\":-10,\"duracion\":0,\"eventos\":0}', 0.00, 0, NULL),
 (2, 15, '2026-02-02 02:52:42', '2026-12-24', '2026-12-26', 2, 2790.00, 900.00, '{\"temporada\":30,\"dia_semana\":0,\"anticipacion\":-10,\"ocupacion\":-10,\"duracion\":0,\"eventos\":45}', 0.00, 0, NULL),
-(3, 17, '2026-02-02 03:01:01', '2026-02-07', '2026-02-08', 1, 135.00, 100.00, '{\"temporada\":15,\"dia_semana\":20,\"anticipacion\":10,\"ocupacion\":-10,\"duracion\":0,\"eventos\":0}', 0.00, 0, NULL);
+(3, 17, '2026-02-02 03:01:01', '2026-02-07', '2026-02-08', 1, 135.00, 100.00, '{\"temporada\":15,\"dia_semana\":20,\"anticipacion\":10,\"ocupacion\":-10,\"duracion\":0,\"eventos\":0}', 0.00, 0, NULL),
+(4, 16, '2026-02-02 19:23:52', '2026-03-15', '2026-03-17', 2, 6000.00, 3000.00, '{\"temporada\":-5,\"dia_semana\":20,\"anticipacion\":-5,\"ocupacion\":-10,\"duracion\":0,\"eventos\":0}', 0.00, 0, NULL),
+(5, 17, '2026-02-02 19:24:00', '2026-03-15', '2026-03-17', 2, 200.00, 100.00, '{\"temporada\":-5,\"dia_semana\":20,\"anticipacion\":-5,\"ocupacion\":-10,\"duracion\":0,\"eventos\":0}', 0.00, 0, NULL),
+(6, 17, '2026-02-02 19:30:06', '2026-12-15', '2026-12-17', 2, 220.00, 100.00, '{\"temporada\":30,\"dia_semana\":0,\"anticipacion\":-10,\"ocupacion\":-10,\"duracion\":0,\"eventos\":0}', 0.00, 0, NULL);
 
 -- --------------------------------------------------------
 
@@ -304,6 +308,9 @@ CREATE TABLE `reserva` (
   `fecha_entrada` datetime NOT NULL,
   `fecha_salida` datetime NOT NULL,
   `total` decimal(10,2) NOT NULL,
+  `cantidad_adultos` int(11) NOT NULL DEFAULT 1,
+  `cantidad_ninos` int(11) NOT NULL DEFAULT 0,
+  `hora_llegada` time DEFAULT NULL,
   `precio_base` decimal(10,2) DEFAULT NULL,
   `estado` enum('pendiente','confirmada','cancelada','finalizada') DEFAULT 'pendiente',
   `ajuste_temporada` decimal(5,2) DEFAULT 0.00,
@@ -320,13 +327,13 @@ CREATE TABLE `reserva` (
 -- Volcado de datos para la tabla `reserva`
 --
 
-INSERT INTO `reserva` (`id_reserva`, `id_cliente`, `id_habitacion`, `fecha_entrada`, `fecha_salida`, `total`, `precio_base`, `estado`, `ajuste_temporada`, `ajuste_ocupacion`, `ajuste_anticipacion`, `ajuste_duracion`, `ajuste_dia_semana`, `ajuste_eventos`, `precio_sugerido`, `fecha_creacion`) VALUES
-(1, 1, 16, '2026-01-29 00:00:00', '2026-01-31 00:00:00', 6000.00, NULL, 'pendiente', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NULL, '2026-02-02 02:34:13'),
-(2, 1, 15, '2026-01-30 00:00:00', '2026-01-31 00:00:00', 900.00, NULL, 'pendiente', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NULL, '2026-02-02 02:34:13'),
-(3, 2, 15, '2026-02-05 00:00:00', '2026-02-06 00:00:00', 900.00, NULL, 'pendiente', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NULL, '2026-02-02 02:34:13'),
-(4, 1, 15, '2026-02-26 00:00:00', '2026-02-28 00:00:00', 1800.00, NULL, 'confirmada', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NULL, '2026-02-02 02:34:13'),
-(5, 2, 15, '2026-02-07 00:00:00', '2026-02-20 00:00:00', 11700.00, NULL, 'cancelada', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NULL, '2026-02-02 02:34:13'),
-(6, 2, 15, '2026-02-23 00:00:00', '2026-02-25 00:00:00', 1800.00, NULL, 'pendiente', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NULL, '2026-02-02 02:34:13');
+INSERT INTO `reserva` (`id_reserva`, `id_cliente`, `id_habitacion`, `fecha_entrada`, `fecha_salida`, `total`, `cantidad_adultos`, `cantidad_ninos`, `hora_llegada`, `precio_base`, `estado`, `ajuste_temporada`, `ajuste_ocupacion`, `ajuste_anticipacion`, `ajuste_duracion`, `ajuste_dia_semana`, `ajuste_eventos`, `precio_sugerido`, `fecha_creacion`) VALUES
+(1, 1, 16, '2026-01-29 00:00:00', '2026-01-31 00:00:00', 6000.00, 1, 0, NULL, NULL, 'pendiente', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NULL, '2026-02-02 02:34:13'),
+(4, 1, 15, '2026-02-26 00:00:00', '2026-02-28 00:00:00', 1800.00, 1, 0, NULL, NULL, 'confirmada', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NULL, '2026-02-02 02:34:13'),
+(7, 4, 14, '2026-02-12 00:00:00', '2026-02-14 00:00:00', 610.00, 1, 0, NULL, NULL, 'confirmada', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NULL, '2026-02-02 10:10:07'),
+(8, 4, 15, '2026-02-04 00:00:00', '2026-02-05 00:00:00', 900.00, 1, 0, NULL, NULL, 'pendiente', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NULL, '2026-02-02 12:16:38'),
+(9, 1, 14, '2026-02-07 00:00:00', '2026-02-08 00:00:00', 305.00, 1, 1, '21:31:00', NULL, 'pendiente', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NULL, '2026-02-05 07:29:47'),
+(10, 1, 14, '2026-02-09 00:00:00', '2026-02-11 00:00:00', 610.00, 1, 1, '07:48:00', NULL, 'pendiente', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, NULL, '2026-02-05 07:35:48');
 
 -- --------------------------------------------------------
 
@@ -494,7 +501,7 @@ CREATE TABLE `usuario` (
 
 INSERT INTO `usuario` (`id_usuario`, `nombre`, `apellido`, `ci`, `correo`, `password`, `id_rol`, `fecha_registro`, `estado`, `google_id`) VALUES
 (1, 'Ruben', 'Felipe', '9391668', 'felipe@hostal.com', '$2b$10$70z/iofFTDMvly2C/C9JXeWJt9LAhn4M8cs9WT7D4cXXE2Yz68pbm', 1, '2025-11-16 14:16:01', 1, NULL),
-(2, 'Judith', 'Herrera', '509080', 'judith@hostal.com', '$2b$10$6YOLF9weCwHS7DIsVidojuiUAbxcgSs4e8Ds/DjovxYbImH90zI/i', 2, '2025-11-16 15:12:42', 1, NULL),
+(2, 'Judith', 'Herrera', '509080', 'judith@hostal.com', '$2b$10$AP94LtERC2vj64r2CV0DDeTxYW51slFVzSZ0VL8Ich2pz8o86iSNe', 1, '2025-11-16 15:12:42', 1, NULL),
 (3, 'Luis', 'Zambrana', '9867889', 'luis@hostal.com', '$2b$10$UYmlGuyv66hHVFlfHHjc/.OqRyFX5V3Z/C6D8lOUSYN6nxJ.vE1x6', 3, '2025-11-18 02:06:48', 1, NULL),
 (4, 'Lucia', 'Derosa', '9838292', 'lucia@hostal.com', '$2b$10$DW5RB3jGwjNgYrZZulAG6.S2uIRf.swTvMDdqzmyGoIwFCbWfZZei', 1, '2025-11-18 02:32:18', 1, NULL),
 (5, 'Felipe', 'Mejia', NULL, 'ruben16felipe@gmail.com', 'GOOGLE_AUTH', 4, '2026-01-25 18:36:16', 1, NULL),
@@ -623,13 +630,13 @@ ALTER TABLE `usuario`
 -- AUTO_INCREMENT de la tabla `cliente`
 --
 ALTER TABLE `cliente`
-  MODIFY `id_cliente` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id_cliente` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT de la tabla `consulta_precio`
 --
 ALTER TABLE `consulta_precio`
-  MODIFY `id_consulta` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id_consulta` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT de la tabla `evento_especial`
@@ -677,7 +684,7 @@ ALTER TABLE `permisos`
 -- AUTO_INCREMENT de la tabla `reserva`
 --
 ALTER TABLE `reserva`
-  MODIFY `id_reserva` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id_reserva` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT de la tabla `rol`

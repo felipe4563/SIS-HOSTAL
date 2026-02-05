@@ -2,11 +2,28 @@ import db from '../config/db.js';
 
 // Crear reserva (público si no está logueado, protegido si sí)
 export const crearReserva = async (req, res) => {
-  const { id_cliente, id_habitacion, fecha_entrada, fecha_salida, total } = req.body;
+  const { 
+    id_cliente, 
+    id_habitacion, 
+    fecha_entrada, 
+    fecha_salida, 
+    total,
+    cantidad_adultos,
+    cantidad_ninos,
+    hora_llegada
+  } = req.body;
 
+  // Validar campos obligatorios
   if (!id_cliente || !id_habitacion || !fecha_entrada || !fecha_salida || !total) {
     return res.status(400).json({ 
       message: 'Todos los campos son obligatorios' 
+    });
+  }
+
+  // Validar cantidad de personas
+  if (!cantidad_adultos || cantidad_adultos < 1) {
+    return res.status(400).json({ 
+      message: 'Debe haber al menos 1 adulto en la reserva' 
     });
   }
 
@@ -46,11 +63,29 @@ export const crearReserva = async (req, res) => {
       });
     }
 
-    // Crear la reserva
+    // Crear la reserva con los nuevos campos
     const [result] = await db.query(
-      `INSERT INTO reserva (id_cliente, id_habitacion, fecha_entrada, fecha_salida, total, estado)
-       VALUES (?, ?, ?, ?, ?, 'pendiente')`,
-      [id_cliente, id_habitacion, fecha_entrada, fecha_salida, total]
+      `INSERT INTO reserva (
+        id_cliente, 
+        id_habitacion, 
+        fecha_entrada, 
+        fecha_salida, 
+        total, 
+        cantidad_adultos, 
+        cantidad_ninos, 
+        hora_llegada,
+        estado
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
+      [
+        id_cliente, 
+        id_habitacion, 
+        fecha_entrada, 
+        fecha_salida, 
+        total,
+        cantidad_adultos || 1,
+        cantidad_ninos || 0,
+        hora_llegada || null
+      ]
     );
 
     res.status(201).json({
@@ -62,7 +97,6 @@ export const crearReserva = async (req, res) => {
     res.status(500).json({ message: 'Error al crear reserva' });
   }
 };
-
 // Obtener reservas del cliente logueado
 export const obtenerMisReservas = async (req, res) => {
   const id_cliente = req.usuario.id_cliente;
@@ -72,7 +106,8 @@ export const obtenerMisReservas = async (req, res) => {
       `SELECT 
         r.*,
         h.numero as numero_habitacion,
-        t.nombre as tipo_habitacion
+        t.nombre as tipo_habitacion,
+        t.capacidad as capacidad_habitacion
        FROM reserva r
        INNER JOIN habitacion h ON r.id_habitacion = h.id_habitacion
        INNER JOIN tipo t ON h.id_tipo = t.id_tipo

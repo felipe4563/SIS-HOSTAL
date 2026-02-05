@@ -13,7 +13,6 @@ const MisReservas = () => {
   const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000';
 
   useEffect(() => {
-    // Verificar que sea un cliente
     if (!usuario || usuario.tipo !== 'cliente') {
       navigate('/');
       return;
@@ -80,6 +79,13 @@ const MisReservas = () => {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const formatearHora = (hora) => {
+    if (!hora) return null;
+    // Si la hora viene en formato HH:MM:SS, tomar solo HH:MM
+    const [horas, minutos] = hora.split(':');
+    return `${horas}:${minutos}`;
   };
 
   const calcularNoches = (entrada, salida) => {
@@ -150,6 +156,7 @@ const MisReservas = () => {
                 {reservas.map((reserva) => {
                   const noches = calcularNoches(reserva.fecha_entrada, reserva.fecha_salida);
                   const precioPorNoche = reserva.total / noches;
+                  const totalHuespedes = (reserva.cantidad_adultos || 0) + (reserva.cantidad_ninos || 0);
 
                   return (
                     <div
@@ -201,6 +208,17 @@ const MisReservas = () => {
                                   <p className="font-semibold">{formatearFecha(reserva.fecha_salida)}</p>
                                 </div>
                               </div>
+                              
+                              {/* 🆕 Hora de llegada */}
+                              {reserva.hora_llegada && (
+                                <div className="flex items-center text-gray-700">
+                                  <span className="text-2xl mr-3">⏰</span>
+                                  <div>
+                                    <p className="text-xs text-gray-500 font-semibold">Hora estimada de llegada</p>
+                                    <p className="font-semibold">{formatearHora(reserva.hora_llegada)}</p>
+                                  </div>
+                                </div>
+                              )}
                             </div>
 
                             {/* Detalles de precio */}
@@ -221,6 +239,64 @@ const MisReservas = () => {
                               </div>
                             </div>
                           </div>
+
+                          {/* 🆕 Información de huéspedes */}
+                          {(reserva.cantidad_adultos || reserva.cantidad_ninos) && (
+                            <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 mb-6 border border-purple-200">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center">
+                                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-lg mr-4">
+                                    {totalHuespedes}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-semibold text-gray-700 mb-1">Huéspedes registrados</p>
+                                    <div className="flex items-center space-x-4 text-sm">
+                                      {reserva.cantidad_adultos > 0 && (
+                                        <div className="flex items-center text-purple-700">
+                                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                          </svg>
+                                          <span className="font-semibold">
+                                            {reserva.cantidad_adultos} {reserva.cantidad_adultos === 1 ? 'Adulto' : 'Adultos'}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {reserva.cantidad_ninos > 0 && (
+                                        <div className="flex items-center text-pink-700">
+                                          <span className="mr-1">👶</span>
+                                          <span className="font-semibold">
+                                            {reserva.cantidad_ninos} {reserva.cantidad_ninos === 1 ? 'Niño' : 'Niños'}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                {/* Indicador de capacidad */}
+                                <div className="hidden sm:block">
+                                  <div className="text-right">
+                                    <p className="text-xs text-gray-500 mb-1">Capacidad</p>
+                                    <div className="flex items-center">
+                                      <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
+                                        <div 
+                                          className={`h-2 rounded-full ${
+                                            totalHuespedes <= reserva.capacidad_habitacion 
+                                              ? 'bg-green-500' 
+                                              : 'bg-red-500'
+                                          }`}
+                                          style={{ width: `${Math.min((totalHuespedes / reserva.capacidad_habitacion) * 100, 100)}%` }}
+                                        ></div>
+                                      </div>
+                                      <span className="text-xs font-semibold text-gray-600">
+                                        {totalHuespedes}/{reserva.capacidad_habitacion}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
 
                           {/* Acciones */}
                           <div className="flex flex-wrap gap-3">
