@@ -97,6 +97,141 @@ export const crearReserva = async (req, res) => {
     res.status(500).json({ message: 'Error al crear reserva' });
   }
 };
+export const crearReservaMultiple = async (req, res) => {
+  const { 
+    id_cliente, 
+    habitaciones, // Array de objetos con info de cada habitación
+    fecha_entrada, 
+    fecha_salida,
+    cantidad_adultos,
+    cantidad_ninos,
+    hora_llegada
+  } = req.body;
+
+  // Validar campos obligatorios
+  if (!id_cliente || !habitaciones || !Array.isArray(habitaciones) || habitaciones.length === 0) {
+    return res.status(400).json({ 
+      message: 'Cliente y habitaciones son obligatorios' 
+    });
+  }
+
+  if (!fecha_entrada || !fecha_salida) {
+    return res.status(400).json({ 
+      message: 'Las fechas de entrada y salida son obligatorias' 
+    });
+  }
+
+  if (!cantidad_adultos || cantidad_adultos < 1) {
+    return res.status(400).json({ 
+      message: 'Debe haber al menos 1 adulto en la reserva' 
+    });
+  }
+
+  const connection = await db.getConnection();
+  
+  try {
+    // Iniciar transacción
+    await connection.beginTransaction();
+
+    const reservasCreadas = [];
+    
+    // Procesar cada habitación
+    for (const hab of habitaciones) {
+      const { id_habitacion, precio } = hab;
+
+      if (!id_habitacion || !precio) {
+        throw new Error('Cada habitación debe tener id_habitacion y precio');
+      }
+
+      // Verificar que la habitación existe
+      const [habitacion] = await connection.query(
+        'SELECT * FROM habitacion WHERE id_habitacion = ?',
+        [id_habitacion]
+      );
+
+      if (habitacion.length === 0) {
+        throw new Error(`Habitación ${id_habitacion} no encontrada`);
+      }
+
+      // Verificar disponibilidad
+      const [conflictos] = await connection.query(
+        `SELECT COUNT(*) as conflictos
+         FROM reserva
+         WHERE id_habitacion = ?
+           AND estado IN ('pendiente', 'confirmada')
+           AND (
+             (fecha_entrada <= ? AND fecha_salida >= ?) OR
+             (fecha_entrada <= ? AND fecha_salida >= ?) OR
+             (fecha_entrada >= ? AND fecha_salida <= ?)
+           )`,
+        [
+          id_habitacion,
+          fecha_salida, fecha_entrada,
+          fecha_salida, fecha_salida,
+          fecha_entrada, fecha_salida
+        ]
+      );
+
+      if (conflictos[0].conflictos > 0) {
+        throw new Error(
+          `La habitación ${habitacion[0].numero} no está disponible para esas fechas`
+        );
+      }
+
+      // Crear la reserva
+      const [result] = await connection.query(
+        `INSERT INTO reserva (
+          id_cliente, 
+          id_habitacion, 
+          fecha_entrada, 
+          fecha_salida, 
+          total, 
+          cantidad_adultos, 
+          cantidad_ninos, 
+          hora_llegada,
+          estado
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
+        [
+          id_cliente, 
+          id_habitacion, 
+          fecha_entrada, 
+          fecha_salida, 
+          precio,
+          cantidad_adultos || 1,
+          cantidad_ninos || 0,
+          hora_llegada || null
+        ]
+      );
+
+      reservasCreadas.push({
+        id_reserva: result.insertId,
+        id_habitacion,
+        numero_habitacion: habitacion[0].numero,
+        precio
+      });
+    }
+
+    // Confirmar transacción
+    await connection.commit();
+
+    res.status(201).json({
+      message: 'Reservas creadas exitosamente',
+      cantidad_reservas: reservasCreadas.length,
+      reservas: reservasCreadas,
+      total_general: reservasCreadas.reduce((sum, r) => sum + parseFloat(r.precio), 0)
+    });
+
+  } catch (error) {
+    // Revertir transacción en caso de error
+    await connection.rollback();
+    console.error('Error al crear reservas:', error);
+    res.status(500).json({ 
+      message: error.message || 'Error al crear reservas' 
+    });
+  } finally {
+    connection.release();
+  }
+};
 // Obtener reservas del cliente logueado
 export const obtenerMisReservas = async (req, res) => {
   const id_cliente = req.usuario.id_cliente;

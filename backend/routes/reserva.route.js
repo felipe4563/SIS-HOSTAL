@@ -6,13 +6,16 @@ import {
   cancelarReserva,
   obtenerTodasReservas,
   actualizarEstadoReserva,
-  eliminarReserva
+  eliminarReserva, 
+  crearReservaMultiple
 } from '../controllers/reserva.controller.js';
 
 const router = express.Router();
 
 // Crear reserva (requiere autenticación)
 router.post('/', authMiddleware, crearReserva);
+
+router.post('/multiple', authMiddleware, crearReservaMultiple);
 
 // Obtener mis reservas
 router.get('/mis-reservas', authMiddleware, obtenerMisReservas);

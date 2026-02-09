@@ -6,6 +6,12 @@ export const crearReserva = async (datos) => {
   return response.data;
 };
 
+// Crear reserva múltiple
+export const crearReservaMultiple = async (data) => {
+  const response = await api.post('/reservas/multiple', data);
+  return response.data;
+};
+
 // Obtener reservas del cliente
 export const obtenerMisReservas = async () => {
   const response = await api.get('/reservas/mis-reservas');

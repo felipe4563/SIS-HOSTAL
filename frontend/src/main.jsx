@@ -5,13 +5,12 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider } from "./context/AuthContext";
 import { AbilityContext } from "./context/AbilityContext";
 import { AuthContext } from "./context/AuthContext";
+import { CarritoProvider } from "./context/CarritoContext";
 import App from "./App";
 import "./index.css";
 
-// 👇 LEER EL CLIENT ID DEL ARCHIVO .env
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-// 👇 DEBUG: Verificar que se está leyendo correctamente
 console.log('🔑 Google Client ID:', GOOGLE_CLIENT_ID);
 
 if (!GOOGLE_CLIENT_ID) {
@@ -23,7 +22,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <BrowserRouter>
         <AuthProvider>
-          <AuthConsumer />
+          <CarritoProvider>
+            <AuthConsumer />
+          </CarritoProvider>
         </AuthProvider>
       </BrowserRouter>
     </GoogleOAuthProvider>
@@ -36,7 +37,7 @@ function AuthConsumer() {
 
   return (
     <AbilityContext.Provider value={ability}>
-      <App />
+      <App />  {/* 👈 ESTO FALTABA */}
     </AbilityContext.Provider>
   );
 }
