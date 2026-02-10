@@ -1,20 +1,22 @@
 import db from '../config/db.js';
+import pricingDinamicoService from '../services/pricingDinamic.service.js';
 
-// Crear reserva (público si no está logueado, protegido si sí)
+// ============================================
+// 📌 CREAR RESERVA INDIVIDUAL (CON PRICING DINÁMICO)
+// ============================================
 export const crearReserva = async (req, res) => {
   const { 
     id_cliente, 
     id_habitacion, 
     fecha_entrada, 
-    fecha_salida, 
-    total,
+    fecha_salida,
     cantidad_adultos,
     cantidad_ninos,
     hora_llegada
   } = req.body;
 
   // Validar campos obligatorios
-  if (!id_cliente || !id_habitacion || !fecha_entrada || !fecha_salida || !total) {
+  if (!id_cliente || !id_habitacion || !fecha_entrada || !fecha_salida) {
     return res.status(400).json({ 
       message: 'Todos los campos son obligatorios' 
     });
@@ -63,7 +65,15 @@ export const crearReserva = async (req, res) => {
       });
     }
 
-    // Crear la reserva con los nuevos campos
+    // 🎯 CALCULAR PRECIO DINÁMICO
+    const precioCalculado = await pricingDinamicoService.calcularPrecio(
+      id_habitacion,
+      fecha_entrada,
+      fecha_salida,
+      req.ip
+    );
+
+    // Crear la reserva con precio dinámico calculado
     const [result] = await db.query(
       `INSERT INTO reserva (
         id_cliente, 
@@ -81,26 +91,46 @@ export const crearReserva = async (req, res) => {
         id_habitacion, 
         fecha_entrada, 
         fecha_salida, 
-        total,
+        precioCalculado.precio_total, // 👈 Precio dinámico
         cantidad_adultos || 1,
         cantidad_ninos || 0,
         hora_llegada || null
       ]
     );
 
+    // 📊 Marcar consulta de precio como convertida en reserva
+    await pricingDinamicoService.marcarConsultaConvertida(
+      id_habitacion,
+      fecha_entrada,
+      result.insertId
+    );
+
     res.status(201).json({
       message: 'Reserva creada exitosamente',
-      id_reserva: result.insertId
+      id_reserva: result.insertId,
+      detalles_precio: {
+        precio_base: precioCalculado.precio_base,
+        precio_por_noche: precioCalculado.precio_por_noche,
+        precio_total: precioCalculado.precio_total,
+        noches: precioCalculado.noches,
+        ajustes_aplicados: precioCalculado.ajustes
+      }
     });
   } catch (error) {
     console.error('Error al crear reserva:', error);
-    res.status(500).json({ message: 'Error al crear reserva' });
+    res.status(500).json({ 
+      message: error.message || 'Error al crear reserva' 
+    });
   }
 };
+
+// ============================================
+// 📌 CREAR RESERVA MÚLTIPLE (CON PRICING DINÁMICO)
+// ============================================
 export const crearReservaMultiple = async (req, res) => {
   const { 
     id_cliente, 
-    habitaciones, // Array de objetos con info de cada habitación
+    habitaciones, // Array de { id_habitacion }
     fecha_entrada, 
     fecha_salida,
     cantidad_adultos,
@@ -134,13 +164,14 @@ export const crearReservaMultiple = async (req, res) => {
     await connection.beginTransaction();
 
     const reservasCreadas = [];
+    let totalGeneral = 0;
     
     // Procesar cada habitación
     for (const hab of habitaciones) {
-      const { id_habitacion, precio } = hab;
+      const { id_habitacion } = hab;
 
-      if (!id_habitacion || !precio) {
-        throw new Error('Cada habitación debe tener id_habitacion y precio');
+      if (!id_habitacion) {
+        throw new Error('Cada habitación debe tener id_habitacion');
       }
 
       // Verificar que la habitación existe
@@ -178,6 +209,14 @@ export const crearReservaMultiple = async (req, res) => {
         );
       }
 
+      // 🎯 CALCULAR PRECIO DINÁMICO PARA ESTA HABITACIÓN
+      const precioCalculado = await pricingDinamicoService.calcularPrecio(
+        id_habitacion,
+        fecha_entrada,
+        fecha_salida,
+        req.ip
+      );
+
       // Crear la reserva
       const [result] = await connection.query(
         `INSERT INTO reserva (
@@ -196,18 +235,31 @@ export const crearReservaMultiple = async (req, res) => {
           id_habitacion, 
           fecha_entrada, 
           fecha_salida, 
-          precio,
+          precioCalculado.precio_total, // 👈 Precio dinámico
           cantidad_adultos || 1,
           cantidad_ninos || 0,
           hora_llegada || null
         ]
       );
 
+      // 📊 Marcar consulta como convertida
+      await pricingDinamicoService.marcarConsultaConvertida(
+        id_habitacion,
+        fecha_entrada,
+        result.insertId
+      );
+
+      totalGeneral += precioCalculado.precio_total;
+
       reservasCreadas.push({
         id_reserva: result.insertId,
         id_habitacion,
         numero_habitacion: habitacion[0].numero,
-        precio
+        precio_base: precioCalculado.precio_base,
+        precio_por_noche: precioCalculado.precio_por_noche,
+        precio_total: precioCalculado.precio_total,
+        noches: precioCalculado.noches,
+        ajustes_aplicados: precioCalculado.ajustes
       });
     }
 
@@ -218,7 +270,13 @@ export const crearReservaMultiple = async (req, res) => {
       message: 'Reservas creadas exitosamente',
       cantidad_reservas: reservasCreadas.length,
       reservas: reservasCreadas,
-      total_general: reservasCreadas.reduce((sum, r) => sum + parseFloat(r.precio), 0)
+      total_general: parseFloat(totalGeneral.toFixed(2)),
+      desglose: {
+        fecha_entrada,
+        fecha_salida,
+        cantidad_adultos,
+        cantidad_ninos
+      }
     });
 
   } catch (error) {
@@ -232,6 +290,7 @@ export const crearReservaMultiple = async (req, res) => {
     connection.release();
   }
 };
+
 // Obtener reservas del cliente logueado
 export const obtenerMisReservas = async (req, res) => {
   const id_cliente = req.usuario.id_cliente;
@@ -242,7 +301,8 @@ export const obtenerMisReservas = async (req, res) => {
         r.*,
         h.numero as numero_habitacion,
         t.nombre as tipo_habitacion,
-        t.capacidad as capacidad_habitacion
+        t.capacidad as capacidad_habitacion,
+        DATEDIFF(r.fecha_salida, r.fecha_entrada) as noches
        FROM reserva r
        INNER JOIN habitacion h ON r.id_habitacion = h.id_habitacion
        INNER JOIN tipo t ON h.id_tipo = t.id_tipo
@@ -307,7 +367,8 @@ export const obtenerTodasReservas = async (req, res) => {
         c.apellido as apellido_cliente,
         c.ci as ci_cliente,
         c.correo as correo_cliente,
-        CONCAT(c.nombre, ' ', c.apellido) as nombre_cliente
+        DATEDIFF(r.fecha_salida, r.fecha_entrada) as noches,
+        CONCAT(c.nombre, ' ', c.apellido) as cliente_completo
        FROM reserva r
        INNER JOIN habitacion h ON r.id_habitacion = h.id_habitacion
        INNER JOIN tipo t ON h.id_tipo = t.id_tipo

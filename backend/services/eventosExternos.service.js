@@ -93,7 +93,7 @@ class EventosExternosService {
   }
   
   /**
-   * 🌐 OBTENER FERIADOS DE BOLIVIA
+   *  OBTENER FERIADOS DE BOLIVIA
    * API GRATUITA: https://date.nager.at/Api
    * Descarga automáticamente las fechas correctas de cada año
    */

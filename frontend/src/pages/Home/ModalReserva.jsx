@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { verificarDisponibilidad } from '../../services/habitacion';
 import { crearReserva } from '../../services/reserva';
+import { calcularPrecioDinamico } from '../../services/pricing'; // 👈 NUEVO
 
 const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
   const { usuario } = useContext(AuthContext);
@@ -10,8 +11,6 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
   
   const [fechaEntrada, setFechaEntrada] = useState('');
   const [fechaSalida, setFechaSalida] = useState('');
-  const [dias, setDias] = useState(0);
-  const [total, setTotal] = useState(0);
   const [disponible, setDisponible] = useState(null);
   const [verificando, setVerificando] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -21,21 +20,36 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
   const [cantidadNinos, setCantidadNinos] = useState(0);
   const [horaLlegada, setHoraLlegada] = useState('');
 
+  // 🎯 Estados para pricing dinámico
+  const [precioDinamico, setPrecioDinamico] = useState(null);
+  const [calculandoPrecio, setCalculandoPrecio] = useState(false);
+  const [mostrarDetalles, setMostrarDetalles] = useState(false);
+
+  // 🎯 Calcular precio dinámico cuando cambien las fechas
   useEffect(() => {
-    if (fechaEntrada && fechaSalida) {
-      const entrada = new Date(fechaEntrada);
-      const salida = new Date(fechaSalida);
-      const diferencia = Math.ceil((salida - entrada) / (1000 * 60 * 60 * 24));
-      
-      if (diferencia > 0) {
-        setDias(diferencia);
-        setTotal(diferencia * habitacion.precio_total);
+    const calcularPrecio = async () => {
+      if (fechaEntrada && fechaSalida) {
+        try {
+          setCalculandoPrecio(true);
+          const resultado = await calcularPrecioDinamico({
+            id_habitacion: habitacion.id_habitacion,
+            fecha_entrada: fechaEntrada,
+            fecha_salida: fechaSalida
+          });
+          setPrecioDinamico(resultado);
+        } catch (err) {
+          console.error('Error calculando precio:', err);
+          setPrecioDinamico(null);
+        } finally {
+          setCalculandoPrecio(false);
+        }
       } else {
-        setDias(0);
-        setTotal(0);
+        setPrecioDinamico(null);
       }
-    }
-  }, [fechaEntrada, fechaSalida, habitacion.precio_total]);
+    };
+
+    calcularPrecio();
+  }, [fechaEntrada, fechaSalida, habitacion.id_habitacion]);
 
   const handleVerificarDisponibilidad = async () => {
     if (!fechaEntrada || !fechaSalida) return;
@@ -66,7 +80,7 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
       return;
     }
 
-    if (dias <= 0) {
+    if (!precioDinamico || precioDinamico.noches <= 0) {
       setError('La fecha de salida debe ser posterior a la de entrada');
       return;
     }
@@ -88,7 +102,6 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
         numero_habitacion: habitacion.numero,
         fecha_entrada: fechaEntrada,
         fecha_salida: fechaSalida,
-        total: total,
         cantidad_adultos: cantidadAdultos,
         cantidad_ninos: cantidadNinos,
         hora_llegada: horaLlegada
@@ -111,18 +124,20 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
     setError('');
 
     try {
-      await crearReserva({
+      // 🎯 YA NO ENVIAMOS EL CAMPO "total" - el backend lo calcula
+      const response = await crearReserva({
         id_cliente: idCliente,
         id_habitacion: habitacion.id_habitacion,
         fecha_entrada: fechaEntrada,
         fecha_salida: fechaSalida,
-        total: total,
+        // total: SE ELIMINA - ahora lo calcula el backend
         cantidad_adultos: cantidadAdultos,
         cantidad_ninos: cantidadNinos,
         hora_llegada: horaLlegada
       });
 
       alert('¡Reserva creada exitosamente!');
+      console.log('Detalles de la reserva:', response);
       onSuccess();
       onClose();
     } catch (err) {
@@ -135,13 +150,19 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
 
   const fechaMinima = new Date().toISOString().split('T')[0];
 
+  // 🎨 Función para obtener el color del ajuste
+  const getAjusteColor = (valor) => {
+    if (valor > 0) return 'text-red-600';
+    if (valor < 0) return 'text-green-600';
+    return 'text-gray-600';
+  };
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fadeIn">
       <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[95vh] overflow-hidden transform animate-slideUp">
         
         {/* 🎨 Header Premium con degradado */}
         <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700 text-white p-8 overflow-hidden">
-          {/* Decoración de fondo */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/20 rounded-full translate-y-1/2 -translate-x-1/2 blur-2xl"></div>
           
@@ -170,7 +191,7 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span className="text-xl font-bold">Bs. {habitacion.precio_total}</span>
-                  <span className="text-sm ml-1">/noche</span>
+                  <span className="text-sm ml-1">/noche base</span>
                 </div>
               </div>
             </div>
@@ -189,7 +210,7 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
         {/* 📋 Contenido del formulario */}
         <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto max-h-[calc(95vh-180px)]">
           
-          {/* 👤 Info del usuario (si está logueado) */}
+          {/* 👤 Info del usuario */}
           {usuario && (
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4 flex items-center">
               <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg mr-4">
@@ -319,14 +340,23 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
             </p>
           </div>
 
-          {/* 💰 Resumen de la reserva */}
-          {dias > 0 && (
+          {/* 💰 Resumen de la reserva CON PRICING DINÁMICO */}
+          {calculandoPrecio && (
+            <div className="bg-blue-50 rounded-2xl p-6 text-center border border-blue-200">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-3">
+                <div className="w-6 h-6 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+              <p className="text-blue-900 font-semibold">Calculando precio dinámico...</p>
+            </div>
+          )}
+
+          {precioDinamico && !calculandoPrecio && (
             <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-6 border-2 border-blue-100 shadow-lg">
               <h3 className="font-bold text-gray-900 mb-4 flex items-center text-lg">
                 <svg className="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
-                Resumen de tu reserva
+                Resumen con Precio Inteligente
               </h3>
               
               <div className="space-y-3">
@@ -337,7 +367,7 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
                     </svg>
                     Noches de estancia
                   </span>
-                  <span className="font-bold text-gray-900 text-lg">{dias}</span>
+                  <span className="font-bold text-gray-900 text-lg">{precioDinamico.noches}</span>
                 </div>
                 
                 <div className="flex justify-between items-center py-2">
@@ -354,23 +384,118 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
                 
                 <div className="flex justify-between items-center py-2">
                   <span className="text-gray-700 flex items-center">
-                    <svg className="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Tarifa por noche
+                    Precio base por noche
                   </span>
-                  <span className="font-semibold text-gray-900">Bs. {habitacion.precio_total}</span>
+                  <span className="text-gray-600 line-through">Bs. {precioDinamico.precio_base}</span>
                 </div>
+
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-gray-700 flex items-center font-semibold">
+                    <svg className="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                    Precio dinámico por noche
+                  </span>
+                  <span className="font-bold text-blue-600 text-lg">Bs. {precioDinamico.precio_por_noche}</span>
+                </div>
+
+                {/* 🎯 Botón para ver/ocultar detalles */}
+                <button
+                  type="button"
+                  onClick={() => setMostrarDetalles(!mostrarDetalles)}
+                  className="w-full py-2 text-sm text-blue-600 hover:text-blue-700 font-semibold flex items-center justify-center gap-2 transition-colors"
+                >
+                  {mostrarDetalles ? 'Ocultar' : 'Ver'} detalles del precio
+                  <svg 
+                    className={`w-4 h-4 transition-transform ${mostrarDetalles ? 'rotate-180' : ''}`}
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {/* 📊 Detalles de ajustes (expandible) */}
+                {mostrarDetalles && (
+                  <div className="mt-3 pt-3 border-t border-blue-200 space-y-2 bg-white/50 rounded-xl p-3">
+                    <p className="text-xs font-bold text-gray-600 mb-2">AJUSTES APLICADOS:</p>
+                    
+                    {precioDinamico.ajustes.temporada !== 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">• Temporada</span>
+                        <span className={`font-semibold ${getAjusteColor(precioDinamico.ajustes.temporada)}`}>
+                          {precioDinamico.ajustes.temporada > 0 ? '+' : ''}{precioDinamico.ajustes.temporada}%
+                        </span>
+                      </div>
+                    )}
+                    
+                    {precioDinamico.ajustes.dia_semana !== 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">• Día de la semana</span>
+                        <span className={`font-semibold ${getAjusteColor(precioDinamico.ajustes.dia_semana)}`}>
+                          {precioDinamico.ajustes.dia_semana > 0 ? '+' : ''}{precioDinamico.ajustes.dia_semana}%
+                        </span>
+                      </div>
+                    )}
+                    
+                    {precioDinamico.ajustes.anticipacion !== 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">• Anticipación ({precioDinamico.dias_anticipacion} días)</span>
+                        <span className={`font-semibold ${getAjusteColor(precioDinamico.ajustes.anticipacion)}`}>
+                          {precioDinamico.ajustes.anticipacion > 0 ? '+' : ''}{precioDinamico.ajustes.anticipacion}%
+                        </span>
+                      </div>
+                    )}
+                    
+                    {precioDinamico.ajustes.ocupacion !== 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">• Ocupación ({precioDinamico.ocupacion_actual}%)</span>
+                        <span className={`font-semibold ${getAjusteColor(precioDinamico.ajustes.ocupacion)}`}>
+                          {precioDinamico.ajustes.ocupacion > 0 ? '+' : ''}{precioDinamico.ajustes.ocupacion}%
+                        </span>
+                      </div>
+                    )}
+                    
+                    {precioDinamico.ajustes.duracion !== 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">• Duración de estadía</span>
+                        <span className={`font-semibold ${getAjusteColor(precioDinamico.ajustes.duracion)}`}>
+                          {precioDinamico.ajustes.duracion > 0 ? '+' : ''}{precioDinamico.ajustes.duracion}%
+                        </span>
+                      </div>
+                    )}
+                    
+                    {precioDinamico.ajustes.eventos !== 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">• Eventos especiales</span>
+                        <span className={`font-semibold ${getAjusteColor(precioDinamico.ajustes.eventos)}`}>
+                          {precioDinamico.ajustes.eventos > 0 ? '+' : ''}{precioDinamico.ajustes.eventos}%
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between text-sm pt-2 border-t border-gray-300">
+                      <span className="font-bold text-gray-700">Ajuste total</span>
+                      <span className={`font-bold ${getAjusteColor(precioDinamico.ajustes.total)}`}>
+                        {precioDinamico.ajustes.total > 0 ? '+' : ''}{precioDinamico.ajustes.total}%
+                      </span>
+                    </div>
+                  </div>
+                )}
                 
                 <div className="border-t-2 border-blue-200 pt-3 mt-3">
                   <div className="flex justify-between items-center">
                     <span className="font-bold text-gray-900 text-lg">Total a pagar</span>
                     <div className="text-right">
                       <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                        Bs. {total.toFixed(2)}
+                        Bs. {precioDinamico.precio_total.toFixed(2)}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        ({dias} {dias === 1 ? 'noche' : 'noches'} × Bs. {habitacion.precio_total})
+                        ({precioDinamico.noches} {precioDinamico.noches === 1 ? 'noche' : 'noches'} × Bs. {precioDinamico.precio_por_noche})
                       </div>
                     </div>
                   </div>
@@ -386,7 +511,6 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
                 <div className="w-6 h-6 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
               </div>
               <p className="text-blue-900 font-semibold">Verificando disponibilidad...</p>
-              <p className="text-blue-600 text-sm mt-1">Un momento por favor</p>
             </div>
           )}
 
@@ -421,7 +545,7 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
                   }`}>
                     {disponible 
                       ? 'La habitación está disponible para las fechas seleccionadas' 
-                      : 'Esta habitación no está disponible para las fechas seleccionadas. Por favor, elige otras fechas.'}
+                      : 'Esta habitación no está disponible para las fechas seleccionadas.'}
                   </p>
                 </div>
               </div>
@@ -452,9 +576,9 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
             </button>
             <button
               type="submit"
-              disabled={loading || disponible === false || dias <= 0}
+              disabled={loading || disponible === false || !precioDinamico}
               className={`flex-1 px-6 py-4 rounded-xl font-bold transition-all duration-200 transform ${
-                loading || disponible === false || dias <= 0
+                loading || disponible === false || !precioDinamico
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-gradient-to-r from-blue-600 via-blue-700 to-purple-700 hover:from-blue-700 hover:via-blue-800 hover:to-purple-800 text-white shadow-xl hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98]'
               }`}
