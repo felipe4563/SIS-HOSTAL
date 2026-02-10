@@ -7,15 +7,13 @@ export const calcularPrecioDinamico = async (datos) => {
 
 // 👇 NUEVO: Calcular precio para múltiples habitaciones
 export const calcularPrecioDinamicoMultiple = async (habitaciones, fechaEntrada, fechaSalida) => {
-  const promesas = habitaciones.map(hab => 
-    calcularPrecioDinamico({
-      id_habitacion: hab.id_habitacion,
-      fecha_entrada: fechaEntrada,
-      fecha_salida: fechaSalida
-    })
-  );
+  const { data } = await api.post('/pricing/calcular-multiple', {
+    habitaciones: habitaciones.map(hab => ({ id_habitacion: hab.id_habitacion })),
+    fecha_entrada: fechaEntrada,
+    fecha_salida: fechaSalida
+  });
   
-  return await Promise.all(promesas);
+  return data.precios; // Retorna el array de precios
 };
 
 export const obtenerEventosActivos = async () => {

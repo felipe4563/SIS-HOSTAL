@@ -125,7 +125,7 @@ export const crearReserva = async (req, res) => {
 };
 
 // ============================================
-// 📌 CREAR RESERVA MÚLTIPLE (CON PRICING DINÁMICO)
+// 📌 CREAR RESERVA MÚLTIPLE (OPTIMIZADO)
 // ============================================
 export const crearReservaMultiple = async (req, res) => {
   const { 
@@ -163,11 +163,8 @@ export const crearReservaMultiple = async (req, res) => {
     // Iniciar transacción
     await connection.beginTransaction();
 
-    const reservasCreadas = [];
-    let totalGeneral = 0;
-    
-    // Procesar cada habitación
-    for (const hab of habitaciones) {
+    // 🚀 PASO 1: VERIFICAR TODAS LAS HABITACIONES EN PARALELO
+    const verificacionesPromesas = habitaciones.map(async (hab) => {
       const { id_habitacion } = hab;
 
       if (!id_habitacion) {
@@ -209,13 +206,30 @@ export const crearReservaMultiple = async (req, res) => {
         );
       }
 
-      // 🎯 CALCULAR PRECIO DINÁMICO PARA ESTA HABITACIÓN
-      const precioCalculado = await pricingDinamicoService.calcularPrecio(
+      return { id_habitacion, habitacion: habitacion[0] };
+    });
+
+    const habitacionesVerificadas = await Promise.all(verificacionesPromesas);
+
+    // 🚀 PASO 2: CALCULAR TODOS LOS PRECIOS EN PARALELO
+    const preciosPromesas = habitacionesVerificadas.map(({ id_habitacion }) => 
+      pricingDinamicoService.calcularPrecio(
         id_habitacion,
         fecha_entrada,
         fecha_salida,
         req.ip
-      );
+      )
+    );
+
+    const preciosCalculados = await Promise.all(preciosPromesas);
+
+    // 🚀 PASO 3: CREAR TODAS LAS RESERVAS
+    const reservasCreadas = [];
+    let totalGeneral = 0;
+
+    for (let i = 0; i < habitacionesVerificadas.length; i++) {
+      const { id_habitacion, habitacion } = habitacionesVerificadas[i];
+      const precioCalculado = preciosCalculados[i];
 
       // Crear la reserva
       const [result] = await connection.query(
@@ -235,26 +249,26 @@ export const crearReservaMultiple = async (req, res) => {
           id_habitacion, 
           fecha_entrada, 
           fecha_salida, 
-          precioCalculado.precio_total, // 👈 Precio dinámico
+          precioCalculado.precio_total,
           cantidad_adultos || 1,
           cantidad_ninos || 0,
           hora_llegada || null
         ]
       );
 
-      // 📊 Marcar consulta como convertida
-      await pricingDinamicoService.marcarConsultaConvertida(
+      // 📊 Marcar consulta como convertida (sin await para no bloquear)
+      pricingDinamicoService.marcarConsultaConvertida(
         id_habitacion,
         fecha_entrada,
         result.insertId
-      );
+      ).catch(err => console.error('Error marcando consulta:', err));
 
       totalGeneral += precioCalculado.precio_total;
 
       reservasCreadas.push({
         id_reserva: result.insertId,
         id_habitacion,
-        numero_habitacion: habitacion[0].numero,
+        numero_habitacion: habitacion.numero,
         precio_base: precioCalculado.precio_base,
         precio_por_noche: precioCalculado.precio_por_noche,
         precio_total: precioCalculado.precio_total,

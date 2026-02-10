@@ -35,6 +35,48 @@ router.post('/calcular', async (req, res) => {
     });
   }
 });
+router.post('/calcular-multiple', async (req, res) => {
+  try {
+    const { habitaciones, fecha_entrada, fecha_salida } = req.body;
+    
+    // Validar que habitaciones sea un array
+    if (!Array.isArray(habitaciones) || habitaciones.length === 0) {
+      return res.status(400).json({ 
+        message: 'El parámetro habitaciones debe ser un array no vacío' 
+      });
+    }
+    
+    if (!fecha_entrada || !fecha_salida) {
+      return res.status(400).json({ 
+        message: 'Faltan parámetros: fecha_entrada, fecha_salida' 
+      });
+    }
+    
+    // Calcular precio para cada habitación en paralelo
+    const promesas = habitaciones.map(hab => 
+      pricingDinamicoService.calcularPrecio(
+        hab.id_habitacion,
+        fecha_entrada,
+        fecha_salida,
+        req.ip
+      )
+    );
+    
+    const resultados = await Promise.all(promesas);
+    
+    res.json({
+      precios: resultados,
+      total_habitaciones: resultados.length,
+      total_general: resultados.reduce((sum, r) => sum + r.precio_total, 0)
+    });
+    
+  } catch (error) {
+    console.error('Error calculando precios múltiples:', error);
+    res.status(500).json({ 
+      message: error.message || 'Error al calcular precios' 
+    });
+  }
+});
 
 // ============================================
 // 🔄 EVENTOS - SINCRONIZACIÓN
