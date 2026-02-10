@@ -1,180 +1,321 @@
 import db from '../config/db.js';
 
-export const obtenerEstadisticas = async (req, res) => {
+// Helper function para obtener el rango de fechas según el periodo
+const obtenerRangoFechas = (periodo) => {
+  let fechaInicio, fechaFin;
+  const ahora = new Date();
+  
+  switch(periodo) {
+    case 'semana':
+      fechaInicio = new Date(ahora);
+      fechaInicio.setDate(ahora.getDate() - 7);
+      fechaFin = ahora;
+      break;
+    case 'mes':
+      fechaInicio = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+      fechaFin = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0);
+      break;
+    case 'año':
+      fechaInicio = new Date(ahora.getFullYear(), 0, 1);
+      fechaFin = new Date(ahora.getFullYear(), 11, 31);
+      break;
+    default:
+      // Por defecto mes actual
+      fechaInicio = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+      fechaFin = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0);
+  }
+  
+  return {
+    inicio: fechaInicio.toISOString().split('T')[0],
+    fin: fechaFin.toISOString().split('T')[0]
+  };
+};
+
+// 📊 Obtener estadísticas generales del dashboard
+export const getEstadisticasGenerales = async (req, res) => {
   try {
-    // Estadísticas generales
-    const [totalHabitaciones] = await db.query(
+    const { periodo = 'mes' } = req.query;
+    const { inicio, fin } = obtenerRangoFechas(periodo);
+    
+    const connection = await db.getConnection();
+
+    // Total de reservas en el periodo
+    const [totalReservas] = await connection.query(
+      `SELECT COUNT(*) as total FROM reserva 
+       WHERE DATE(fecha_creacion) BETWEEN ? AND ?`,
+      [inicio, fin]
+    );
+
+    // Total de clientes
+    const [totalClientes] = await connection.query(
+      'SELECT COUNT(*) as total FROM cliente WHERE estado = 1'
+    );
+
+    // Ingresos en el periodo
+    const [ingresosPeriodo] = await connection.query(
+      `SELECT COALESCE(SUM(monto), 0) as total FROM pago 
+       WHERE DATE(fecha_pago) BETWEEN ? AND ?`,
+      [inicio, fin]
+    );
+
+    // Habitaciones disponibles
+    const [habitacionesDisponibles] = await connection.query(
+      "SELECT COUNT(*) as total FROM habitacion WHERE estado = 'disponible'"
+    );
+
+    // Total de habitaciones
+    const [totalHabitaciones] = await connection.query(
       'SELECT COUNT(*) as total FROM habitacion'
     );
 
-    const [habitacionesDisponibles] = await db.query(
-      'SELECT COUNT(*) as disponibles FROM habitacion WHERE estado = "disponible"'
-    );
-
-    const [habitacionesOcupadas] = await db.query(
-      'SELECT COUNT(*) as ocupadas FROM habitacion WHERE estado = "ocupada"'
-    );
-
-    const [totalClientes] = await db.query(
-      'SELECT COUNT(*) as total FROM cliente'
-    );
-
-    // Ingresos del mes actual
-    const [ingresosMes] = await db.query(`
-      SELECT COALESCE(SUM(total), 0) as ingresos_mes 
-      FROM reservas 
-      WHERE MONTH(fecha_creacion) = MONTH(CURRENT_DATE()) 
-      AND YEAR(fecha_creacion) = YEAR(CURRENT_DATE())
-      AND estado = 'confirmada'
-    `);
-
-    // Habitaciones más populares
-    const [habitacionesPopulares] = await db.query(`
-      SELECT h.numero, h.tipo_habitacion, COUNT(r.id_reserva) as reservas_count
-      FROM habitacion h
-      LEFT JOIN reservas r ON h.id_habitacion = r.id_habitacion
-      GROUP BY h.id_habitacion, h.numero, h.tipo_habitacion
-      ORDER BY reservas_count DESC
-      LIMIT 5
-    `);
-
-    // Estado de habitaciones por piso
-    const [estadoPorPiso] = await db.query(`
-      SELECT 
-        piso,
-        COUNT(*) as total,
-        SUM(CASE WHEN estado = 'disponible' THEN 1 ELSE 0 END) as disponibles,
-        SUM(CASE WHEN estado = 'ocupada' THEN 1 ELSE 0 END) as ocupadas,
-        SUM(CASE WHEN estado = 'limpieza' THEN 1 ELSE 0 END) as limpieza
-      FROM habitacion
-      GROUP BY piso
-      ORDER BY piso
-    `);
-
-    // Reservas recientes (últimas 5)
-    const [reservasRecientes] = await db.query(`
-      SELECT r.id_reserva, r.fecha_entrada, r.fecha_salida, r.estado,
-             c.nombre, c.apellido, h.numero as habitacion
-      FROM reservas r
-      INNER JOIN cliente c ON r.id_cliente = c.id_cliente
-      INNER JOIN habitacion h ON r.id_habitacion = h.id_habitacion
-      ORDER BY r.fecha_creacion DESC
-      LIMIT 5
-    `);
+    connection.release();
 
     res.json({
-      success: true,
-      data: {
-        estadisticas: {
-          total_habitaciones: totalHabitaciones[0].total,
-          habitaciones_disponibles: habitacionesDisponibles[0].disponibles,
-          habitaciones_ocupadas: habitacionesOcupadas[0].ocupadas,
-          total_clientes: totalClientes[0].total,
-          ingresos_mes: parseFloat(ingresosMes[0].ingresos_mes) || 0
-        },
-        habitaciones_populares: habitacionesPopulares,
-        estado_por_piso: estadoPorPiso,
-        reservas_recientes: reservasRecientes
-      }
+      totalReservas: totalReservas[0].total,
+      totalClientes: totalClientes[0].total,
+      ingresosPeriodo: parseFloat(ingresosPeriodo[0].total),
+      habitacionesDisponibles: habitacionesDisponibles[0].total,
+      totalHabitaciones: totalHabitaciones[0].total,
+      tasaOcupacion: ((totalHabitaciones[0].total - habitacionesDisponibles[0].total) / totalHabitaciones[0].total * 100).toFixed(2),
+      periodo: periodo,
+      fechaInicio: inicio,
+      fechaFin: fin
     });
 
   } catch (error) {
-    console.error('Error al obtener estadísticas:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor'
-    });
+    console.error('Error al obtener estadísticas generales:', error);
+    res.status(500).json({ message: 'Error al obtener estadísticas' });
   }
 };
 
-export const obtenerGraficoReservas = async (req, res) => {
+// 📈 Reservas por estado
+export const getReservasPorEstado = async (req, res) => {
   try {
-    // Reservas por mes (últimos 6 meses)
-    const [reservasPorMes] = await db.query(`
-      SELECT 
-        DATE_FORMAT(fecha_creacion, '%Y-%m') as mes,
-        COUNT(*) as total_reservas,
-        SUM(total) as ingresos
-      FROM reservas 
-      WHERE fecha_creacion >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH)
-      AND estado = 'confirmada'
-      GROUP BY DATE_FORMAT(fecha_creacion, '%Y-%m')
-      ORDER BY mes
-    `);
+    const { periodo = 'mes' } = req.query;
+    const { inicio, fin } = obtenerRangoFechas(periodo);
 
-    // Tipos de habitación más reservados
-    const [tiposPopulares] = await db.query(`
-      SELECT t.nombre, COUNT(r.id_reserva) as reservas_count
-      FROM tipo t
-      LEFT JOIN habitacion h ON t.id_tipo = h.id_tipo
-      LEFT JOIN reservas r ON h.id_habitacion = r.id_habitacion
-      WHERE r.fecha_creacion >= DATE_SUB(CURRENT_DATE(), INTERVAL 3 MONTH)
-      GROUP BY t.id_tipo, t.nombre
-      ORDER BY reservas_count DESC
-    `);
+    const [reservas] = await db.query(
+      `SELECT estado, COUNT(*) as cantidad 
+       FROM reserva 
+       WHERE DATE(fecha_creacion) BETWEEN ? AND ?
+       GROUP BY estado`,
+      [inicio, fin]
+    );
 
-    res.json({
-      success: true,
-      data: {
-        reservas_por_mes: reservasPorMes,
-        tipos_populares: tiposPopulares
-      }
-    });
-
+    res.json(reservas);
   } catch (error) {
-    console.error('Error al obtener datos para gráficos:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor'
-    });
+    console.error('Error al obtener reservas por estado:', error);
+    res.status(500).json({ message: 'Error al obtener datos' });
   }
 };
 
-export const obtenerAlertas = async (req, res) => {
+// 📅 Reservas por periodo (desglose)
+export const getReservasPorPeriodo = async (req, res) => {
   try {
-    // Habitaciones en mantenimiento por mucho tiempo
-    const [habitacionesMantenimiento] = await db.query(`
-      SELECT numero, estado, descripcion
-      FROM habitacion 
-      WHERE estado = 'limpieza'
-      ORDER BY id_habitacion
-      LIMIT 10
-    `);
+    const { periodo = 'mes' } = req.query;
+    const { inicio, fin } = obtenerRangoFechas(periodo);
+    
+    let formatoFecha, groupBy;
+    
+    switch(periodo) {
+      case 'semana':
+        formatoFecha = '%Y-%m-%d'; // Por día
+        groupBy = 'DATE(fecha_creacion)';
+        break;
+      case 'mes':
+        formatoFecha = '%Y-%m-%d'; // Por día del mes
+        groupBy = 'DATE(fecha_creacion)';
+        break;
+      case 'año':
+        formatoFecha = '%Y-%m'; // Por mes del año
+        groupBy = 'DATE_FORMAT(fecha_creacion, "%Y-%m")';
+        break;
+      default:
+        formatoFecha = '%Y-%m-%d';
+        groupBy = 'DATE(fecha_creacion)';
+    }
 
-    // Reservas pendientes de confirmación
-    const [reservasPendientes] = await db.query(`
-      SELECT COUNT(*) as pendientes
-      FROM reservas 
-      WHERE estado = 'pendiente'
-    `);
+    const [reservas] = await db.query(
+      `SELECT 
+        DATE_FORMAT(fecha_creacion, ?) as periodo,
+        COUNT(*) as cantidad,
+        COALESCE(SUM(total), 0) as ingresos
+       FROM reserva
+       WHERE DATE(fecha_creacion) BETWEEN ? AND ?
+       GROUP BY ${groupBy}
+       ORDER BY periodo ASC`,
+      [formatoFecha, inicio, fin]
+    );
 
-    // Clientes frecuentes
-    const [clientesFrecuentes] = await db.query(`
-      SELECT c.nombre, c.apellido, COUNT(r.id_reserva) as total_reservas
-      FROM cliente c
-      INNER JOIN reservas r ON c.id_cliente = r.id_cliente
-      GROUP BY c.id_cliente, c.nombre, c.apellido
-      HAVING total_reservas >= 3
-      ORDER BY total_reservas DESC
-      LIMIT 5
-    `);
-
-    res.json({
-      success: true,
-      data: {
-        alertas: {
-          habitaciones_mantenimiento: habitacionesMantenimiento,
-          reservas_pendientes: reservasPendientes[0].pendientes,
-          clientes_frecuentes: clientesFrecuentes
-        }
-      }
-    });
-
+    res.json(reservas);
   } catch (error) {
-    console.error('Error al obtener alertas:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor'
-    });
+    console.error('Error al obtener reservas por periodo:', error);
+    res.status(500).json({ message: 'Error al obtener datos' });
+  }
+};
+
+// 🏨 Habitaciones más reservadas
+export const getHabitacionesMasReservadas = async (req, res) => {
+  try {
+    const { periodo = 'mes' } = req.query;
+    const { inicio, fin } = obtenerRangoFechas(periodo);
+
+    const [habitaciones] = await db.query(
+      `SELECT 
+        h.numero,
+        t.nombre as tipo,
+        COUNT(r.id_reserva) as total_reservas,
+        COALESCE(SUM(r.total), 0) as ingresos_generados
+       FROM habitacion h
+       LEFT JOIN reserva r ON h.id_habitacion = r.id_habitacion 
+         AND DATE(r.fecha_creacion) BETWEEN ? AND ?
+       LEFT JOIN tipo t ON h.id_tipo = t.id_tipo
+       GROUP BY h.id_habitacion, h.numero, t.nombre
+       HAVING total_reservas > 0
+       ORDER BY total_reservas DESC
+       LIMIT 10`,
+      [inicio, fin]
+    );
+
+    res.json(habitaciones);
+  } catch (error) {
+    console.error('Error al obtener habitaciones más reservadas:', error);
+    res.status(500).json({ message: 'Error al obtener datos' });
+  }
+};
+
+// 💳 Métodos de pago más usados
+export const getMetodosPago = async (req, res) => {
+  try {
+    const { periodo = 'mes' } = req.query;
+    const { inicio, fin } = obtenerRangoFechas(periodo);
+
+    const [metodos] = await db.query(
+      `SELECT 
+        metodo_pago,
+        COUNT(*) as cantidad,
+        COALESCE(SUM(monto), 0) as total_monto
+       FROM pago
+       WHERE DATE(fecha_pago) BETWEEN ? AND ?
+       GROUP BY metodo_pago`,
+      [inicio, fin]
+    );
+
+    res.json(metodos);
+  } catch (error) {
+    console.error('Error al obtener métodos de pago:', error);
+    res.status(500).json({ message: 'Error al obtener datos' });
+  }
+};
+
+// 🌡️ Ocupación por temporada
+export const getOcupacionPorTemporada = async (req, res) => {
+  try {
+    const [ocupacion] = await db.query(
+      `SELECT 
+        t.nombre as temporada,
+        COUNT(r.id_reserva) as total_reservas,
+        AVG(r.total) as promedio_ingreso
+       FROM temporada t
+       LEFT JOIN reserva r ON MONTH(r.fecha_entrada) BETWEEN t.mes_inicio AND t.mes_fin
+       WHERE t.activo = 1
+       GROUP BY t.id_temporada, t.nombre
+       ORDER BY total_reservas DESC`
+    );
+
+    res.json(ocupacion);
+  } catch (error) {
+    console.error('Error al obtener ocupación por temporada:', error);
+    res.status(500).json({ message: 'Error al obtener datos' });
+  }
+};
+
+// 👥 Clientes más frecuentes
+export const getClientesFrecuentes = async (req, res) => {
+  try {
+    const { periodo = 'mes' } = req.query;
+    const { inicio, fin } = obtenerRangoFechas(periodo);
+
+    const [clientes] = await db.query(
+      `SELECT 
+        c.nombre,
+        c.apellido,
+        c.correo,
+        COUNT(r.id_reserva) as total_reservas,
+        COALESCE(SUM(r.total), 0) as gasto_total
+       FROM cliente c
+       LEFT JOIN reserva r ON c.id_cliente = r.id_cliente 
+         AND DATE(r.fecha_creacion) BETWEEN ? AND ?
+       WHERE c.estado = 1
+       GROUP BY c.id_cliente, c.nombre, c.apellido, c.correo
+       HAVING total_reservas > 0
+       ORDER BY total_reservas DESC
+       LIMIT 10`,
+      [inicio, fin]
+    );
+
+    res.json(clientes);
+  } catch (error) {
+    console.error('Error al obtener clientes frecuentes:', error);
+    res.status(500).json({ message: 'Error al obtener datos' });
+  }
+};
+
+// 📊 Estado de habitaciones
+export const getEstadoHabitaciones = async (req, res) => {
+  try {
+    const [estados] = await db.query(
+      `SELECT 
+        estado,
+        COUNT(*) as cantidad
+       FROM habitacion
+       GROUP BY estado`
+    );
+
+    res.json(estados);
+  } catch (error) {
+    console.error('Error al obtener estado de habitaciones:', error);
+    res.status(500).json({ message: 'Error al obtener datos' });
+  }
+};
+
+// 💰 Ingresos por periodo
+export const getIngresosPorPeriodo = async (req, res) => {
+  try {
+    const { periodo = 'mes' } = req.query;
+    const { inicio, fin } = obtenerRangoFechas(periodo);
+
+    let formatoFecha, groupBy;
+    
+    switch(periodo) {
+      case 'semana':
+      case 'mes':
+        formatoFecha = '%Y-%m-%d';
+        groupBy = 'DATE(fecha_pago)';
+        break;
+      case 'año':
+        formatoFecha = '%Y-%m';
+        groupBy = 'DATE_FORMAT(fecha_pago, "%Y-%m")';
+        break;
+      default:
+        formatoFecha = '%Y-%m-%d';
+        groupBy = 'DATE(fecha_pago)';
+    }
+
+    const [ingresos] = await db.query(
+      `SELECT 
+        DATE_FORMAT(fecha_pago, ?) as fecha,
+        COALESCE(SUM(monto), 0) as total
+       FROM pago
+       WHERE DATE(fecha_pago) BETWEEN ? AND ?
+       GROUP BY ${groupBy}
+       ORDER BY fecha ASC`,
+      [formatoFecha, inicio, fin]
+    );
+
+    res.json(ingresos);
+  } catch (error) {
+    console.error('Error al obtener ingresos por periodo:', error);
+    res.status(500).json({ message: 'Error al obtener datos' });
   }
 };

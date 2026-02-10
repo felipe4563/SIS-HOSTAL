@@ -12,6 +12,8 @@ import habitacionRoutes from './routes/habitacion.routes.js';
 import tipoRoutes from './routes/tipo.routes.js';
 import reservaRoutes from './routes/reserva.route.js';
 import clienteRoutes from './routes/cliente.routes.js';
+import dashboardRoutes from './routes/dashboard.routes.js';
+import reporteRoutes from './routes/reporte.routes.js';
 import pricingRoutes from './routes/pricing.routes.js'; // 👈 NUEVO
 import { defineAbilitiesFor } from './config/abilities.js';
 import eventosExternosService from './services/eventosExternos.service.js'; // 👈 NUEVO
@@ -61,7 +63,9 @@ app.use('/api/habitaciones', habitacionRoutes);
 app.use('/api/tipos', tipoRoutes);
 app.use('/api/reservas', reservaRoutes);
 app.use('/api/clientes', clienteRoutes);
+app.use('/api/reportes', reporteRoutes);
 app.use('/api/pricing', pricingRoutes); // 👈 NUEVO - Rutas de tarifas dinámicas
+app.use('/api/dashboard', dashboardRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const PORT = process.env.PORT || 4000;
