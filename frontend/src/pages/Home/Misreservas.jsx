@@ -9,8 +9,6 @@ const MisReservas = () => {
   const [reservas, setReservas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [reservaCancelar, setReservaCancelar] = useState(null);
-  const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000';
 
   useEffect(() => {
     if (!usuario || usuario.tipo !== 'cliente') {
@@ -44,7 +42,6 @@ const MisReservas = () => {
       await cancelarReserva(id);
       alert('Reserva cancelada exitosamente');
       cargarReservas();
-      setReservaCancelar(null);
     } catch (err) {
       alert(err.response?.data?.message || 'Error al cancelar la reserva');
     }
@@ -83,7 +80,6 @@ const MisReservas = () => {
 
   const formatearHora = (hora) => {
     if (!hora) return null;
-    // Si la hora viene en formato HH:MM:SS, tomar solo HH:MM
     const [horas, minutos] = hora.split(':');
     return `${horas}:${minutos}`;
   };
@@ -209,7 +205,6 @@ const MisReservas = () => {
                                 </div>
                               </div>
                               
-                              {/* 🆕 Hora de llegada */}
                               {reserva.hora_llegada && (
                                 <div className="flex items-center text-gray-700">
                                   <span className="text-2xl mr-3">⏰</span>
@@ -240,7 +235,7 @@ const MisReservas = () => {
                             </div>
                           </div>
 
-                          {/* 🆕 Información de huéspedes */}
+                          {/* Información de huéspedes */}
                           {(reserva.cantidad_adultos || reserva.cantidad_ninos) && (
                             <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 mb-6 border border-purple-200">
                               <div className="flex items-center justify-between">
@@ -273,7 +268,6 @@ const MisReservas = () => {
                                   </div>
                                 </div>
                                 
-                                {/* Indicador de capacidad */}
                                 <div className="hidden sm:block">
                                   <div className="text-right">
                                     <p className="text-xs text-gray-500 mb-1">Capacidad</p>
@@ -300,14 +294,27 @@ const MisReservas = () => {
 
                           {/* Acciones */}
                           <div className="flex flex-wrap gap-3">
+                            {/* ESTADO PENDIENTE - Solo muestra info y botón cancelar */}
                             {reserva.estado === 'pendiente' && (
-                              <button
-                                onClick={() => handleCancelarReserva(reserva.id_reserva)}
-                                className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg"
-                              >
-                                Cancelar Reserva
-                              </button>
+                              <>
+                                <div className="flex-1 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 flex items-center">
+                                  <span className="text-2xl mr-3">⏳</span>
+                                  <div>
+                                    <p className="text-sm font-semibold text-yellow-800">Esperando Confirmación de Pago</p>
+                                    <p className="text-xs text-yellow-600">El pago está siendo procesado</p>
+                                  </div>
+                                </div>
+                                
+                                <button
+                                  onClick={() => handleCancelarReserva(reserva.id_reserva)}
+                                  className="flex-none bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg"
+                                >
+                                  Cancelar Reserva
+                                </button>
+                              </>
                             )}
+                            
+                            {/* ESTADO CONFIRMADA */}
                             {reserva.estado === 'confirmada' && (
                               <div className="flex-1 bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center">
                                 <span className="text-2xl mr-3">✅</span>
@@ -317,10 +324,23 @@ const MisReservas = () => {
                                 </div>
                               </div>
                             )}
+                            
+                            {/* ESTADO CANCELADA */}
                             {reserva.estado === 'cancelada' && (
                               <div className="flex-1 bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center">
                                 <span className="text-2xl mr-3">❌</span>
                                 <p className="text-sm font-semibold text-red-800">Esta reserva fue cancelada</p>
+                              </div>
+                            )}
+                            
+                            {/* ESTADO FINALIZADA */}
+                            {reserva.estado === 'finalizada' && (
+                              <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 flex items-center">
+                                <span className="text-2xl mr-3">🏁</span>
+                                <div>
+                                  <p className="text-sm font-semibold text-gray-800">Estadía Finalizada</p>
+                                  <p className="text-xs text-gray-600">¡Gracias por tu visita!</p>
+                                </div>
                               </div>
                             )}
                           </div>

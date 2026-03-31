@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { verificarDisponibilidad } from '../../services/habitacion';
 import { crearReserva } from '../../services/reserva';
-import { calcularPrecioDinamico } from '../../services/pricing'; // 👈 NUEVO
+import { calcularPrecioDinamico } from '../../services/pricing';
+import { iniciarPago } from '../../services/pago'; // 👈 NUEVO IMPORT
 
 const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
   const { usuario } = useContext(AuthContext);
@@ -124,25 +125,62 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
     setError('');
 
     try {
-      // 🎯 YA NO ENVIAMOS EL CAMPO "total" - el backend lo calcula
-      const response = await crearReserva({
+      // 1️⃣ CREAR LA RESERVA
+      console.log('🎯 Paso 1: Creando reserva...');
+      const responseReserva = await crearReserva({
         id_cliente: idCliente,
         id_habitacion: habitacion.id_habitacion,
         fecha_entrada: fechaEntrada,
         fecha_salida: fechaSalida,
-        // total: SE ELIMINA - ahora lo calcula el backend
         cantidad_adultos: cantidadAdultos,
         cantidad_ninos: cantidadNinos,
         hora_llegada: horaLlegada
       });
 
-      alert('¡Reserva creada exitosamente!');
-      console.log('Detalles de la reserva:', response);
-      onSuccess();
-      onClose();
+      console.log('✅ Reserva creada:', responseReserva);
+      const idReserva = responseReserva.id_reserva;
+
+      // 2️⃣ INICIAR EL PAGO INMEDIATAMENTE
+      console.log('💳 Paso 2: Iniciando proceso de pago...');
+      const resultadoPago = await iniciarPago(idReserva);
+
+      if (resultadoPago.success && resultadoPago.paymentUrl) {
+        console.log('🔗 Link de pago generado:', resultadoPago.paymentUrl);
+        
+        // Guardar info para cuando regrese
+        sessionStorage.setItem('pago_pendiente', JSON.stringify({
+          id_reserva: idReserva,
+          id_pago: resultadoPago.id_pago,
+          timestamp: new Date().getTime()
+        }));
+
+        // 3️⃣ REDIRIGIR A RED ENLACE
+        console.log('🚀 Paso 3: Redirigiendo a Red Enlace...');
+        
+        // Cerrar modal y notificar éxito
+        onSuccess();
+        onClose();
+        
+        // Pequeña pausa para que el usuario vea que se procesó
+        setTimeout(() => {
+          alert('¡Reserva creada! Serás redirigido al portal de pagos.');
+          window.location.href = resultadoPago.paymentUrl;
+        }, 500);
+        
+      } else {
+        setError('Reserva creada pero no se pudo iniciar el pago. Ve a "Mis Reservas" para completar el pago.');
+        console.error('Error al generar link de pago:', resultadoPago);
+      }
+
     } catch (err) {
-      console.error('Error completo:', err);
-      setError(err.response?.data?.message || 'Error al crear la reserva');
+      console.error('❌ Error completo:', err);
+      
+      // Diferenciar entre error de reserva y error de pago
+      if (err.message && err.message.includes('pago')) {
+        setError('Reserva creada pero hubo un error al iniciar el pago. Ve a "Mis Reservas" para completar el pago.');
+      } else {
+        setError(err.response?.data?.message || 'Error al crear la reserva');
+      }
     } finally {
       setLoading(false);
     }
@@ -589,7 +627,7 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Procesando...
+                  Procesando reserva y pago...
                 </span>
               ) : !usuario ? (
                 <span className="flex items-center justify-center">
@@ -603,7 +641,7 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Confirmar reserva
+                  Confirmar y pagar
                 </span>
               )}
             </button>
