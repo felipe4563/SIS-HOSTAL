@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 02-02-2026 a las 07:28:45
+-- Tiempo de generación: 26-04-2026 a las 20:36:42
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -44,9 +44,55 @@ CREATE TABLE `cliente` (
 --
 
 INSERT INTO `cliente` (`id_cliente`, `nombre`, `apellido`, `ci`, `correo`, `celular`, `direccion`, `fecha_registro`, `estado`) VALUES
-(1, 'Felipe', 'Mejia', NULL, 'ruben16felipe@gmail.com', NULL, NULL, '2026-01-29 00:19:14', 1),
-(2, 'Felipe', 'Mejia', '9391668', 'felipemejia7490@gmail.com', '74819122', 'Av. Heroinas ', '2026-01-29 00:24:27', 1),
-(3, 'RUBEN', 'FELIPE', '9857114', 'ruben16felipe2003@gmail.com', '74819166', 'Av. jitos', '2026-01-29 01:14:41', 1);
+(1, 'Felipe', 'Mejia', NULL, 'felipemejia7490@gmail.com', NULL, NULL, '2026-04-26 14:19:50', 1);
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `consulta_precio`
+--
+
+CREATE TABLE `consulta_precio` (
+  `id_consulta` int(11) NOT NULL,
+  `id_habitacion` int(11) NOT NULL,
+  `fecha_consulta` datetime DEFAULT current_timestamp(),
+  `fecha_entrada` date NOT NULL,
+  `fecha_salida` date NOT NULL,
+  `noches` int(11) NOT NULL,
+  `precio_calculado` decimal(10,2) NOT NULL,
+  `precio_base` decimal(10,2) NOT NULL,
+  `ajustes` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`ajustes`)),
+  `ocupacion_porcentaje` decimal(5,2) DEFAULT NULL,
+  `convirtio_en_reserva` tinyint(1) DEFAULT 0,
+  `id_reserva` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `evento_especial`
+--
+
+CREATE TABLE `evento_especial` (
+  `id_evento` int(11) NOT NULL,
+  `nombre` varchar(150) NOT NULL,
+  `fecha_inicio` date NOT NULL,
+  `fecha_fin` date NOT NULL,
+  `ajuste_precio` decimal(5,2) DEFAULT 0.00 COMMENT 'Porcentaje (ej: 40.00 = +40%)',
+  `categoria` enum('feriado','festival','deportivo','congreso','cultural','otro') DEFAULT 'otro',
+  `descripcion` text DEFAULT NULL,
+  `fuente` varchar(50) DEFAULT NULL COMMENT 'feriados_api, manual, google_calendar',
+  `fuente_id` varchar(100) DEFAULT NULL COMMENT 'ID único del evento',
+  `asistencia_estimada` int(11) DEFAULT NULL,
+  `ubicacion` varchar(255) DEFAULT 'Cochabamba, Bolivia',
+  `impacto_calculado` enum('bajo','medio','alto','muy_alto') DEFAULT 'medio',
+  `url_fuente` text DEFAULT NULL,
+  `fecha_sincronizacion` datetime DEFAULT NULL,
+  `verificado` tinyint(1) DEFAULT 0,
+  `activo` tinyint(1) DEFAULT 1 COMMENT '1=futuro, 0=pasado/historial',
+  `estado` tinyint(1) DEFAULT 1,
+  `fecha_creacion` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -63,15 +109,6 @@ CREATE TABLE `habitacion` (
   `estado` enum('disponible','ocupada','limpieza') DEFAULT 'disponible',
   `descripcion` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Volcado de datos para la tabla `habitacion`
---
-
-INSERT INTO `habitacion` (`id_habitacion`, `numero`, `id_tipo`, `precio_total`, `piso`, `estado`, `descripcion`) VALUES
-(14, '2002', 1, 305.00, 2, 'disponible', 'dsjd'),
-(15, '2003', 1, 900.00, 2, 'disponible', 'mkih'),
-(16, '2005', 2, 3000.00, 2, 'disponible', 'dsds');
 
 -- --------------------------------------------------------
 
@@ -91,20 +128,21 @@ CREATE TABLE `habitacion_imagen` (
   `fecha_subida` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- --------------------------------------------------------
+
 --
--- Volcado de datos para la tabla `habitacion_imagen`
+-- Estructura de tabla para la tabla `log_sincronizacion`
 --
 
-INSERT INTO `habitacion_imagen` (`id_imagen`, `id_habitacion`, `ruta`, `tipo_imagen`, `titulo`, `descripcion`, `orden`, `es_portada`, `fecha_subida`) VALUES
-(17, 14, '1764667503916-54220089.jpg', 'normal', NULL, NULL, 0, 0, '2025-12-02 02:25:03'),
-(18, 14, '1764668466813-179191344.jpg', 'normal', NULL, NULL, 0, 0, '2025-12-02 02:41:06'),
-(19, 14, '1764668466813-285801486.jpg', 'normal', NULL, NULL, 0, 0, '2025-12-02 02:41:06'),
-(20, 15, 'habitacion-1768919962893-192346740.jpg', 'normal', NULL, NULL, 1, 0, '2026-01-20 10:39:22'),
-(21, 14, '360-1769038372014-13120791.jpg', '360', 'vista frontal', NULL, 1, 0, '2026-01-21 19:32:52'),
-(22, 15, '360-1769038544948-577407138.jpg', '360', NULL, NULL, 1, 0, '2026-01-21 19:35:44'),
-(23, 16, 'habitacion-1769039016280-751819648.jpg', 'normal', NULL, NULL, 1, 0, '2026-01-21 19:43:36'),
-(24, 16, '360-1769039028898-807440592.jpg', '360', NULL, NULL, 1, 0, '2026-01-21 19:43:48'),
-(25, 16, '360-1769652226032-629308961.jpg', '360', 'vista baño', 'dfdfdf', 2, 0, '2026-01-28 22:03:46');
+CREATE TABLE `log_sincronizacion` (
+  `id_log` int(11) NOT NULL,
+  `fuente` varchar(50) DEFAULT NULL,
+  `eventos_encontrados` int(11) DEFAULT NULL,
+  `eventos_nuevos` int(11) DEFAULT NULL,
+  `eventos_actualizados` int(11) DEFAULT NULL,
+  `errores` text DEFAULT NULL,
+  `fecha_sincronizacion` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -191,20 +229,20 @@ CREATE TABLE `reserva` (
   `fecha_entrada` datetime NOT NULL,
   `fecha_salida` datetime NOT NULL,
   `total` decimal(10,2) NOT NULL,
-  `estado` enum('pendiente','confirmada','cancelada','finalizada') DEFAULT 'pendiente'
+  `cantidad_adultos` int(11) NOT NULL DEFAULT 1,
+  `cantidad_ninos` int(11) NOT NULL DEFAULT 0,
+  `hora_llegada` time DEFAULT NULL,
+  `precio_base` decimal(10,2) DEFAULT NULL,
+  `estado` enum('pendiente','confirmada','cancelada','finalizada') DEFAULT 'pendiente',
+  `ajuste_temporada` decimal(5,2) DEFAULT 0.00,
+  `ajuste_ocupacion` decimal(5,2) DEFAULT 0.00,
+  `ajuste_anticipacion` decimal(5,2) DEFAULT 0.00,
+  `ajuste_duracion` decimal(5,2) DEFAULT 0.00,
+  `ajuste_dia_semana` decimal(5,2) DEFAULT 0.00,
+  `ajuste_eventos` decimal(5,2) DEFAULT 0.00,
+  `precio_sugerido` decimal(10,2) DEFAULT NULL,
+  `fecha_creacion` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Volcado de datos para la tabla `reserva`
---
-
-INSERT INTO `reserva` (`id_reserva`, `id_cliente`, `id_habitacion`, `fecha_entrada`, `fecha_salida`, `total`, `estado`) VALUES
-(1, 1, 16, '2026-01-29 00:00:00', '2026-01-31 00:00:00', 6000.00, 'pendiente'),
-(2, 1, 15, '2026-01-30 00:00:00', '2026-01-31 00:00:00', 900.00, 'pendiente'),
-(3, 2, 15, '2026-02-05 00:00:00', '2026-02-06 00:00:00', 900.00, 'pendiente'),
-(4, 1, 15, '2026-02-26 00:00:00', '2026-02-28 00:00:00', 1800.00, 'confirmada'),
-(5, 2, 15, '2026-02-07 00:00:00', '2026-02-20 00:00:00', 11700.00, 'cancelada'),
-(6, 2, 15, '2026-02-23 00:00:00', '2026-02-25 00:00:00', 1800.00, 'pendiente');
 
 -- --------------------------------------------------------
 
@@ -301,6 +339,22 @@ INSERT INTO `rol_permiso` (`id_rol`, `id_permiso`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `temporada`
+--
+
+CREATE TABLE `temporada` (
+  `id_temporada` int(11) NOT NULL,
+  `nombre` varchar(50) NOT NULL,
+  `mes_inicio` int(11) NOT NULL COMMENT '1-12',
+  `mes_fin` int(11) NOT NULL COMMENT '1-12',
+  `ajuste_precio` decimal(5,2) DEFAULT 0.00,
+  `descripcion` text DEFAULT NULL,
+  `activo` tinyint(1) DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `tipo`
 --
 
@@ -311,14 +365,6 @@ CREATE TABLE `tipo` (
   `precio_base` decimal(10,2) NOT NULL,
   `descripcion` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Volcado de datos para la tabla `tipo`
---
-
-INSERT INTO `tipo` (`id_tipo`, `nombre`, `capacidad`, `precio_base`, `descripcion`) VALUES
-(1, 'Matrimonial', 2, 120.00, 'cama de dos plazas 2'),
-(2, 'Individual', 9, 900.00, 'Individual ');
 
 -- --------------------------------------------------------
 
@@ -344,13 +390,7 @@ CREATE TABLE `usuario` (
 --
 
 INSERT INTO `usuario` (`id_usuario`, `nombre`, `apellido`, `ci`, `correo`, `password`, `id_rol`, `fecha_registro`, `estado`, `google_id`) VALUES
-(1, 'Ruben', 'Felipe', '9391668', 'felipe@hostal.com', '$2b$10$70z/iofFTDMvly2C/C9JXeWJt9LAhn4M8cs9WT7D4cXXE2Yz68pbm', 1, '2025-11-16 14:16:01', 1, NULL),
-(2, 'Judith', 'Herrera', '509080', 'judith@hostal.com', '$2b$10$6YOLF9weCwHS7DIsVidojuiUAbxcgSs4e8Ds/DjovxYbImH90zI/i', 2, '2025-11-16 15:12:42', 1, NULL),
-(3, 'Luis', 'Zambrana', '9867889', 'luis@hostal.com', '$2b$10$UYmlGuyv66hHVFlfHHjc/.OqRyFX5V3Z/C6D8lOUSYN6nxJ.vE1x6', 3, '2025-11-18 02:06:48', 1, NULL),
-(4, 'Lucia', 'Derosa', '9838292', 'lucia@hostal.com', '$2b$10$DW5RB3jGwjNgYrZZulAG6.S2uIRf.swTvMDdqzmyGoIwFCbWfZZei', 1, '2025-11-18 02:32:18', 1, NULL),
-(5, 'Felipe', 'Mejia', NULL, 'ruben16felipe@gmail.com', 'GOOGLE_AUTH', 4, '2026-01-25 18:36:16', 1, NULL),
-(6, 'Felipe', 'Mejia', NULL, 'felipemejia7490@gmail.com', 'GOOGLE_AUTH', 4, '2026-01-26 07:25:26', 1, NULL),
-(7, 'RUBEN', 'FELIPE', NULL, 'ruben16felipe2003@gmail.com', 'GOOGLE_AUTH', 4, '2026-01-26 07:41:17', 1, NULL);
+(1, 'Ruben', 'Felipe', '9391668', 'felipe@hostal.com', '$2b$10$70z/iofFTDMvly2C/C9JXeWJt9LAhn4M8cs9WT7D4cXXE2Yz68pbm', 1, '2025-11-16 14:16:01', 1, NULL);
 
 --
 -- Índices para tablas volcadas
@@ -362,6 +402,25 @@ INSERT INTO `usuario` (`id_usuario`, `nombre`, `apellido`, `ci`, `correo`, `pass
 ALTER TABLE `cliente`
   ADD PRIMARY KEY (`id_cliente`),
   ADD UNIQUE KEY `ci` (`ci`);
+
+--
+-- Indices de la tabla `consulta_precio`
+--
+ALTER TABLE `consulta_precio`
+  ADD PRIMARY KEY (`id_consulta`),
+  ADD KEY `id_reserva` (`id_reserva`),
+  ADD KEY `idx_fecha_entrada` (`fecha_entrada`),
+  ADD KEY `idx_habitacion` (`id_habitacion`);
+
+--
+-- Indices de la tabla `evento_especial`
+--
+ALTER TABLE `evento_especial`
+  ADD PRIMARY KEY (`id_evento`),
+  ADD UNIQUE KEY `idx_fuente_id` (`fuente`,`fuente_id`),
+  ADD KEY `idx_fechas` (`fecha_inicio`,`fecha_fin`),
+  ADD KEY `idx_activo` (`activo`),
+  ADD KEY `idx_fuente` (`fuente`);
 
 --
 -- Indices de la tabla `habitacion`
@@ -377,6 +436,12 @@ ALTER TABLE `habitacion`
 ALTER TABLE `habitacion_imagen`
   ADD PRIMARY KEY (`id_imagen`),
   ADD KEY `id_habitacion` (`id_habitacion`);
+
+--
+-- Indices de la tabla `log_sincronizacion`
+--
+ALTER TABLE `log_sincronizacion`
+  ADD PRIMARY KEY (`id_log`);
 
 --
 -- Indices de la tabla `ocupacion`
@@ -421,6 +486,12 @@ ALTER TABLE `rol_permiso`
   ADD KEY `id_permiso` (`id_permiso`);
 
 --
+-- Indices de la tabla `temporada`
+--
+ALTER TABLE `temporada`
+  ADD PRIMARY KEY (`id_temporada`);
+
+--
 -- Indices de la tabla `tipo`
 --
 ALTER TABLE `tipo`
@@ -443,19 +514,37 @@ ALTER TABLE `usuario`
 -- AUTO_INCREMENT de la tabla `cliente`
 --
 ALTER TABLE `cliente`
-  MODIFY `id_cliente` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id_cliente` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT de la tabla `consulta_precio`
+--
+ALTER TABLE `consulta_precio`
+  MODIFY `id_consulta` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `evento_especial`
+--
+ALTER TABLE `evento_especial`
+  MODIFY `id_evento` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `habitacion`
 --
 ALTER TABLE `habitacion`
-  MODIFY `id_habitacion` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `id_habitacion` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `habitacion_imagen`
 --
 ALTER TABLE `habitacion_imagen`
-  MODIFY `id_imagen` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
+  MODIFY `id_imagen` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `log_sincronizacion`
+--
+ALTER TABLE `log_sincronizacion`
+  MODIFY `id_log` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `ocupacion`
@@ -479,7 +568,7 @@ ALTER TABLE `permisos`
 -- AUTO_INCREMENT de la tabla `reserva`
 --
 ALTER TABLE `reserva`
-  MODIFY `id_reserva` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id_reserva` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `rol`
@@ -488,20 +577,33 @@ ALTER TABLE `rol`
   MODIFY `id_rol` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
+-- AUTO_INCREMENT de la tabla `temporada`
+--
+ALTER TABLE `temporada`
+  MODIFY `id_temporada` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `tipo`
 --
 ALTER TABLE `tipo`
-  MODIFY `id_tipo` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id_tipo` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `usuario`
 --
 ALTER TABLE `usuario`
-  MODIFY `id_usuario` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id_usuario` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- Restricciones para tablas volcadas
 --
+
+--
+-- Filtros para la tabla `consulta_precio`
+--
+ALTER TABLE `consulta_precio`
+  ADD CONSTRAINT `consulta_precio_ibfk_1` FOREIGN KEY (`id_habitacion`) REFERENCES `habitacion` (`id_habitacion`),
+  ADD CONSTRAINT `consulta_precio_ibfk_2` FOREIGN KEY (`id_reserva`) REFERENCES `reserva` (`id_reserva`) ON DELETE SET NULL;
 
 --
 -- Filtros para la tabla `habitacion`

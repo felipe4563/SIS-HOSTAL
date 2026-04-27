@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1d4ed8" />
+      <stop offset="100%" stop-color="#7c3aed" />
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="40" fill="url(#g1)" />
+  <circle cx="96" cy="96" r="56" fill="#ffffff" fill-opacity="0.15" />
+  <path d="M50 96l46-38 46 38v38H50z" fill="#ffffff" />
+  <rect x="86" y="108" width="20" height="26" rx="4" fill="#1d4ed8" />
+  <text x="96" y="42" text-anchor="middle" font-size="20" fill="#ffffff" font-family="Arial, sans-serif" font-weight="700">SURI</text>
+</svg>

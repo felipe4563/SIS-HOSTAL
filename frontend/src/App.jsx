@@ -6,6 +6,7 @@ import { AuthContext } from "./context/AuthContext";
 import Home from "./pages/home";
 import Login from "./pages/Login";
 import LoginCliente from "./pages/LoginCliente";
+import TourVirtual360 from "./pages/Home/TourVirtual360";
 
 // 👤 PÁGINAS DE CLIENTE
 import MisReservas from "./pages/Home/Misreservas";
@@ -36,6 +37,7 @@ function App() {
     <Routes>
       {/* 🏠 PÁGINA PRINCIPAL PÚBLICA */}
       <Route path="/" element={<Home />} />
+      <Route path="/tour-360" element={<TourVirtual360 />} />
 
       {/* 🔑 LOGIN PARA CLIENTES (Huéspedes) */}
       <Route

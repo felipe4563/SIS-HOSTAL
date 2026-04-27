@@ -8,6 +8,9 @@ import { AuthContext } from "./context/AuthContext";
 import { CarritoProvider } from "./context/CarritoContext";
 import App from "./App";
 import "./index.css";
+import { registerSW } from "virtual:pwa-register";
+
+registerSW({ immediate: true });
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 

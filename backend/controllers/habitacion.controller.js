@@ -578,7 +578,6 @@ export const getHabitacionesPublicas = async (req, res) => {
 
     const params = [];
 
-    // Filtros opcionales
     if (id_tipo) {
       query += ' AND h.id_tipo = ?';
       params.push(id_tipo);
@@ -607,20 +606,30 @@ export const getHabitacionesPublicas = async (req, res) => {
 
     const [habitaciones] = await db.query(query, params);
 
-    // Procesar imágenes y construir URLs completas
+    // Procesar imágenes
     const habitacionesProcesadas = habitaciones.map(h => {
       let imagenes = [];
+      
       if (h.imagenes) {
         imagenes = h.imagenes.split('###').map(img => {
           const [id_imagen, ruta, tipo_imagen, es_portada] = img.split('|');
           
-          // 👇 CONSTRUIR URL COMPLETA AQUÍ EN EL BACKEND
-          const carpeta = tipo_imagen === '360' ? 'habitaciones/360' : 'habitaciones';
-          const urlCompleta = `uploads/${carpeta}/${ruta}`;
+          // 🔥 CONSTRUIR RUTA SEGÚN LA ESTRUCTURA DE CARPETAS
+          // uploads/habitaciones/imagen.jpg (para normal)
+          // uploads/habitaciones/360/imagen.jpg (para 360)
+          let rutaCompleta;
+          
+          if (tipo_imagen === '360') {
+            rutaCompleta = `habitaciones/360/${ruta}`;
+          } else {
+            rutaCompleta = `habitaciones/${ruta}`;
+          }
+          
+          console.log(`📸 Imagen procesada: ${rutaCompleta}`);
           
           return {
             id_imagen: parseInt(id_imagen),
-            ruta: urlCompleta, // 👈 RUTA COMPLETA
+            ruta: rutaCompleta, // Sin "uploads/" al inicio
             tipo_imagen,
             es_portada: parseInt(es_portada) === 1
           };
@@ -645,9 +654,11 @@ export const getHabitacionesPublicas = async (req, res) => {
       };
     });
 
+    console.log(`✅ ${habitacionesProcesadas.length} habitaciones encontradas`);
     res.json(habitacionesProcesadas);
+    
   } catch (error) {
-    console.error(error);
+    console.error('❌ Error al obtener habitaciones:', error);
     res.status(500).json({ message: 'Error al obtener habitaciones' });
   }
 };
@@ -680,12 +691,19 @@ export const getHabitacionDetalle = async (req, res) => {
       [id]
     );
 
-    // 👇 CONSTRUIR URLs COMPLETAS
+    // Construir URLs completas
     const imagenesConUrl = imagenes.map(img => {
-      const carpeta = img.tipo_imagen === '360' ? 'habitaciones/360' : 'habitaciones';
+      let rutaCompleta;
+      
+      if (img.tipo_imagen === '360') {
+        rutaCompleta = `habitaciones/360/${img.ruta}`;
+      } else {
+        rutaCompleta = `habitaciones/${img.ruta}`;
+      }
+      
       return {
         ...img,
-        ruta: `uploads/${carpeta}/${img.ruta}` // 👈 RUTA COMPLETA
+        ruta: rutaCompleta
       };
     });
 
@@ -701,8 +719,9 @@ export const getHabitacionDetalle = async (req, res) => {
     };
 
     res.json(habitacion);
+    
   } catch (error) {
-    console.error(error);
+    console.error('❌ Error al obtener habitación:', error);
     res.status(500).json({ message: 'Error al obtener habitación' });
   }
 };
@@ -734,7 +753,7 @@ export const verificarDisponibilidad = async (req, res) => {
 
     res.json({ disponible });
   } catch (error) {
-    console.error(error);
+    console.error('❌ Error al verificar disponibilidad:', error);
     res.status(500).json({ message: 'Error al verificar disponibilidad' });
   }
 };
@@ -745,7 +764,7 @@ export const getTiposHabitacion = async (req, res) => {
     const [tipos] = await db.query('SELECT * FROM tipo ORDER BY nombre');
     res.json(tipos);
   } catch (error) {
-    console.error(error);
+    console.error('❌ Error al obtener tipos:', error);
     res.status(500).json({ message: 'Error al obtener tipos' });
   }
 };

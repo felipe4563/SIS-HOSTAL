@@ -1,5 +1,22 @@
 import { useState, useEffect } from 'react';
 import { obtenerClientes, actualizarCliente, eliminarCliente } from '../services/cliente';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  UsersIcon, 
+  UserPlusIcon, 
+  UserMinusIcon, 
+  IdentificationIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
+  PencilSquareIcon,
+  TrashIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  PhoneIcon,
+  MapPinIcon,
+  EnvelopeIcon,
+  ArrowPathIcon
+} from '@heroicons/react/24/outline';
 
 const Clientes = () => {
   const [clientes, setClientes] = useState([]);
@@ -132,346 +149,395 @@ const Clientes = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Clientes</h1>
-        <p className="text-gray-600">Administra todos los clientes del hostal</p>
-      </div>
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col md:flex-row md:items-center justify-between gap-4"
+      >
+        <div>
+          <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 mb-2">
+            Gestión de Clientes
+          </h1>
+          <p className="text-gray-500 font-medium">Administra y visualiza todos los clientes registrados en el hostal</p>
+        </div>
+        <button 
+          onClick={cargarClientes}
+          className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl text-gray-700 font-semibold shadow-sm transition-all"
+        >
+          <ArrowPathIcon className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+          <span>Actualizar</span>
+        </button>
+      </motion.div>
 
       {/* Estadísticas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-blue-500">
-          <p className="text-sm text-gray-600 font-medium">Total Clientes</p>
-          <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-green-500">
-          <p className="text-sm text-gray-600 font-medium">Activos</p>
-          <p className="text-3xl font-bold text-green-600">{stats.activos}</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-red-500">
-          <p className="text-sm text-gray-600 font-medium">Inactivos</p>
-          <p className="text-3xl font-bold text-red-600">{stats.inactivos}</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-purple-500">
-          <p className="text-sm text-gray-600 font-medium">Con CI</p>
-          <p className="text-3xl font-bold text-purple-600">{stats.conCI}</p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          { label: 'Total Clientes', value: stats.total, icon: UsersIcon, color: 'blue' },
+          { label: 'Activos', value: stats.activos, icon: UserPlusIcon, color: 'green' },
+          { label: 'Inactivos', value: stats.inactivos, icon: UserMinusIcon, color: 'red' },
+          { label: 'Con CI Registrado', value: stats.conCI, icon: IdentificationIcon, color: 'purple' },
+        ].map((stat, idx) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.1 }}
+            className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center space-x-4 hover:shadow-md transition-shadow"
+          >
+            <div className={`p-4 rounded-2xl bg-${stat.color}-50 text-${stat.color}-600`}>
+              <stat.icon className="w-7 h-7" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-500">{stat.label}</p>
+              <p className="text-3xl font-bold text-gray-900 mt-1">{stat.value}</p>
+            </div>
+          </motion.div>
+        ))}
       </div>
 
-      {/* Búsqueda */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <div className="flex items-center space-x-3">
-          <div className="flex-1">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Buscar Cliente
-            </label>
-            <input
-              type="text"
-              placeholder="Buscar por nombre, correo, CI o celular..."
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          {busqueda && (
-            <button
-              onClick={() => setBusqueda('')}
-              className="mt-7 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold transition-all"
-            >
-              Limpiar
-            </button>
-          )}
+      {/* Barra de Búsqueda */}
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-100 p-2"
+      >
+        <div className="relative flex items-center w-full">
+          <MagnifyingGlassIcon className="absolute left-4 w-6 h-6 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar por nombre, correo, CI o celular..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            className="w-full pl-12 pr-12 py-4 bg-transparent border-none rounded-xl focus:ring-0 text-gray-800 text-lg placeholder-gray-400"
+          />
+          <AnimatePresence>
+            {busqueda && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                onClick={() => setBusqueda('')}
+                className="absolute right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
-      </div>
+      </motion.div>
 
       {/* Contenido */}
-      {loading && (
-        <div className="text-center py-20">
-          <div className="inline-block w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-600 font-medium">Cargando clientes...</p>
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="w-16 h-16 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
+          <p className="mt-4 text-gray-500 font-medium animate-pulse">Cargando clientes...</p>
         </div>
-      )}
-
-      {error && (
-        <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6 text-center">
-          <p className="text-red-700 font-semibold mb-4">{error}</p>
+      ) : error ? (
+        <motion.div 
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="bg-red-50/80 backdrop-blur-xl border border-red-200 rounded-2xl p-8 text-center"
+        >
+          <XCircleIcon className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <p className="text-red-700 font-bold text-lg mb-6">{error}</p>
           <button
             onClick={cargarClientes}
-            className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-semibold"
+            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors shadow-sm"
           >
-            Reintentar
+            Intentar nuevamente
           </button>
-        </div>
-      )}
-
-      {!loading && !error && (
-        <>
+        </motion.div>
+      ) : (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+        >
           {clientesFiltrados.length > 0 ? (
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        ID
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        Cliente
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        CI
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        Contacto
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        Registro
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        Estado
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        Acciones
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {clientesFiltrados.map((cliente) => (
-                      <tr key={cliente.id_cliente} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm font-bold text-gray-900">#{cliente.id_cliente}</span>
-                        </td>
+            <div className="overflow-x-auto">
+              <table className="w-full whitespace-nowrap">
+                <thead>
+                  <tr className="bg-gray-50/50 border-b border-gray-100">
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Cliente</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Documento</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Contacto</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Registro</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  <AnimatePresence>
+                    {clientesFiltrados.map((cliente, idx) => (
+                      <motion.tr 
+                        key={cliente.id_cliente}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        className="hover:bg-gray-50/50 transition-colors group"
+                      >
                         <td className="px-6 py-4">
-                          <div className="flex items-center">
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold mr-3">
-                              {cliente.nombre.charAt(0)}{cliente.apellido.charAt(0)}
+                          <div className="flex items-center space-x-4">
+                            <div className="relative">
+                              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                                {cliente.nombre.charAt(0)}{cliente.apellido.charAt(0)}
+                              </div>
+                              <div className={`absolute -bottom-1 -right-1 w-4 h-4 border-2 border-white rounded-full ${cliente.estado === 1 ? 'bg-green-500' : 'bg-red-500'}`}></div>
                             </div>
                             <div>
-                              <p className="text-sm font-semibold text-gray-900">
+                              <p className="text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
                                 {cliente.nombre} {cliente.apellido}
                               </p>
-                              <p className="text-xs text-gray-500">{cliente.correo}</p>
+                              <div className="flex items-center text-xs text-gray-500 mt-1">
+                                <EnvelopeIcon className="w-3 h-3 mr-1" />
+                                {cliente.correo}
+                              </div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4">
                           {cliente.ci ? (
-                            <span className="text-sm text-gray-900">{cliente.ci}</span>
+                            <div className="flex items-center text-sm font-medium text-gray-700">
+                              <IdentificationIcon className="w-4 h-4 mr-2 text-gray-400" />
+                              {cliente.ci}
+                            </div>
                           ) : (
-                            <span className="text-xs text-gray-400 italic">No registrado</span>
+                            <span className="px-3 py-1 bg-gray-100 text-gray-500 rounded-lg text-xs font-medium">Sin CI</span>
                           )}
                         </td>
                         <td className="px-6 py-4">
-                          <div className="text-sm">
+                          <div className="flex flex-col space-y-2">
                             {cliente.celular && (
-                              <p className="text-gray-900">📱 {cliente.celular}</p>
+                              <div className="flex items-center text-sm text-gray-700">
+                                <PhoneIcon className="w-4 h-4 mr-2 text-gray-400" />
+                                {cliente.celular}
+                              </div>
                             )}
                             {cliente.direccion && (
-                              <p className="text-gray-500 text-xs truncate max-w-xs">
-                                📍 {cliente.direccion}
-                              </p>
+                              <div className="flex items-center text-sm text-gray-500 max-w-[200px]">
+                                <MapPinIcon className="w-4 h-4 mr-2 text-gray-400 shrink-0" />
+                                <span className="truncate">{cliente.direccion}</span>
+                              </div>
                             )}
                             {!cliente.celular && !cliente.direccion && (
-                              <span className="text-xs text-gray-400 italic">Sin datos</span>
+                              <span className="text-xs text-gray-400 italic">No proporcionado</span>
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm text-gray-600">
-                            {formatearFecha(cliente.fecha_registro)}
-                          </span>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">
+                          {formatearFecha(cliente.fecha_registro)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 text-center">
                           <button
                             onClick={() => handleToggleEstado(cliente)}
-                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border-2 transition-all ${
+                            className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
                               cliente.estado === 1
-                                ? 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200'
-                                : 'bg-red-100 text-red-800 border-red-300 hover:bg-red-200'
+                                ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                                : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
                             }`}
                           >
-                            {cliente.estado === 1 ? '✅ Activo' : '❌ Inactivo'}
+                            {cliente.estado === 1 ? (
+                              <><CheckCircleIcon className="w-4 h-4 mr-1.5" /> Activo</>
+                            ) : (
+                              <><XCircleIcon className="w-4 h-4 mr-1.5" /> Inactivo</>
+                            )}
                           </button>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center space-x-3">
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end space-x-2">
                             <button
                               onClick={() => handleAbrirModalEditar(cliente)}
-                              className="text-blue-600 hover:text-blue-800 font-semibold text-sm"
+                              className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
                               title="Editar cliente"
                             >
-                              ✏️
+                              <PencilSquareIcon className="w-5 h-5" />
                             </button>
                             <button
                               onClick={() => handleEliminar(cliente.id_cliente)}
-                              className="text-red-600 hover:text-red-800 font-semibold text-sm"
+                              className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
                               title="Eliminar cliente"
                             >
-                              🗑️
+                              <TrashIcon className="w-5 h-5" />
                             </button>
                           </div>
                         </td>
-                      </tr>
+                      </motion.tr>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </AnimatePresence>
+                </tbody>
+              </table>
             </div>
           ) : (
-            <div className="text-center py-20 bg-white rounded-xl shadow-md">
-              <div className="text-6xl mb-4">👥</div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                No se encontraron clientes
-              </h3>
-              <p className="text-gray-600">
-                {busqueda
-                  ? 'Intenta ajustar los criterios de búsqueda'
-                  : 'Aún no hay clientes registrados'}
+            <div className="py-20 text-center">
+              <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <UsersIcon className="w-12 h-12 text-gray-300" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">No se encontraron clientes</h3>
+              <p className="text-gray-500 max-w-md mx-auto">
+                {busqueda 
+                  ? `No hay resultados para "${busqueda}". Intenta con otros términos.`
+                  : 'Aún no tienes clientes registrados en el sistema.'}
               </p>
             </div>
           )}
-        </>
+        </motion.div>
       )}
 
       {/* Modal Editar Cliente */}
-      {mostrarModalEditar && clienteSeleccionado && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-2xl">
-              <h3 className="text-2xl font-bold">Editar Cliente #{clienteSeleccionado.id_cliente}</h3>
+      <AnimatePresence>
+        {mostrarModalEditar && clienteSeleccionado && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMostrarModalEditar(false)}
+              className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40"
+            />
+            <div className="fixed inset-0 flex items-center justify-center p-4 z-50 pointer-events-none">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden pointer-events-auto flex flex-col max-h-[90vh]"
+              >
+                <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                  <h3 className="text-2xl font-bold text-gray-900">
+                    Editar Cliente <span className="text-blue-600">#{clienteSeleccionado.id_cliente}</span>
+                  </h3>
+                  <button 
+                    onClick={() => setMostrarModalEditar(false)}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <XMarkIcon className="w-6 h-6" />
+                  </button>
+                </div>
+
+                <div className="p-8 overflow-y-auto">
+                  <form id="edit-client-form" onSubmit={handleActualizar} className="space-y-6">
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-gray-700">Nombre <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          name="nombre"
+                          value={formData.nombre}
+                          onChange={handleChange}
+                          required
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-gray-700">Apellido <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          name="apellido"
+                          value={formData.apellido}
+                          onChange={handleChange}
+                          required
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-gray-700">Cédula de Identidad</label>
+                        <div className="relative">
+                          <IdentificationIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <input
+                            type="text"
+                            name="ci"
+                            value={formData.ci}
+                            onChange={handleChange}
+                            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                            placeholder="Ej: 12345678"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-gray-700">Celular</label>
+                        <div className="relative">
+                          <PhoneIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <input
+                            type="tel"
+                            name="celular"
+                            value={formData.celular}
+                            onChange={handleChange}
+                            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                            placeholder="Ej: +591 70123456"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-gray-700">Correo Electrónico <span className="text-red-500">*</span></label>
+                      <div className="relative">
+                        <EnvelopeIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <input
+                          type="email"
+                          name="correo"
+                          value={formData.correo}
+                          onChange={handleChange}
+                          required
+                          className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-gray-700">Dirección</label>
+                      <div className="relative">
+                        <MapPinIcon className="absolute left-4 top-4 w-5 h-5 text-gray-400" />
+                        <textarea
+                          name="direccion"
+                          value={formData.direccion}
+                          onChange={handleChange}
+                          rows="2"
+                          className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none resize-none"
+                          placeholder="Ej: Av. Heroínas #123"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold text-gray-700">Estado de la cuenta</label>
+                      <select
+                        name="estado"
+                        value={formData.estado}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none font-medium"
+                      >
+                        <option value={1}>Activo - Puede realizar reservas</option>
+                        <option value={0}>Inactivo - Cuenta suspendida</option>
+                      </select>
+                    </div>
+                  </form>
+                </div>
+
+                <div className="px-8 py-6 border-t border-gray-100 bg-gray-50/50 flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setMostrarModalEditar(false)}
+                    className="flex-1 px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    form="edit-client-form"
+                    className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-colors shadow-lg shadow-blue-600/20"
+                  >
+                    Guardar Cambios
+                  </button>
+                </div>
+              </motion.div>
             </div>
-
-            <form onSubmit={handleActualizar} className="p-6 space-y-6">
-              {/* Nombre y Apellido */}
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Nombre *
-                  </label>
-                  <input
-                    type="text"
-                    name="nombre"
-                    value={formData.nombre}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Apellido *
-                  </label>
-                  <input
-                    type="text"
-                    name="apellido"
-                    value={formData.apellido}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              {/* CI */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Cédula de Identidad
-                </label>
-                <input
-                  type="text"
-                  name="ci"
-                  value={formData.ci}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Ej: 12345678"
-                />
-              </div>
-
-              {/* Correo */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Correo Electrónico *
-                </label>
-                <input
-                  type="email"
-                  name="correo"
-                  value={formData.correo}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              {/* Celular */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Celular
-                </label>
-                <input
-                  type="tel"
-                  name="celular"
-                  value={formData.celular}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Ej: +591 70123456"
-                />
-              </div>
-
-              {/* Dirección */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Dirección
-                </label>
-                <textarea
-                  name="direccion"
-                  value={formData.direccion}
-                  onChange={handleChange}
-                  rows="2"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Ej: Av. Heroínas #123, Cochabamba"
-                />
-              </div>
-
-              {/* Estado */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Estado
-                </label>
-                <select
-                  name="estado"
-                  value={formData.estado}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value={1}>Activo</option>
-                  <option value={0}>Inactivo</option>
-                </select>
-              </div>
-
-              {/* Botones */}
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMostrarModalEditar(false);
-                    setClienteSeleccionado(null);
-                  }}
-                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-semibold transition-all shadow-md hover:shadow-lg"
-                >
-                  Guardar Cambios
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

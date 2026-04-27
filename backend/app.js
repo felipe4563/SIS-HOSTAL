@@ -22,10 +22,20 @@ import pagoRoutes from './routes/pago.routes.js'; // 👈 NUEVO
 dotenv.config();
 const app = express();
 
-const allowedOrigins = [
+const defaultAllowedOrigins = [
   'http://localhost:5173',
-  'https://tudominio.com',   // <-- futuro dominio producción
+  'http://127.0.0.1:5173',
 ];
+
+const envAllowedOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const allowedOrigins = [...new Set([...defaultAllowedOrigins, ...envAllowedOrigins])];
+
+const esOrigenLan = (origin = '') =>
+  /^http:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?$/i.test(origin);
 
 app.use(
   cors({
@@ -33,7 +43,7 @@ app.use(
       // Permite requests sin origen (Postman, cURL)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
+      if (allowedOrigins.includes(origin) || esOrigenLan(origin)) {
         callback(null, true);
       } else {
         callback(new Error('Origen no permitido por CORS'));
@@ -71,12 +81,14 @@ app.use('/api/pagos', pagoRoutes); // 👈 NUEVO - Rutas de pagos
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const PORT = process.env.PORT || 4000;
+const HOST = process.env.HOST || '0.0.0.0';
 
 app.listen(PORT, async () => {
   console.log(`✅ Servidor corriendo en puerto ${PORT}`);
-  console.log(`🌐 http://localhost:${PORT}`);
+  console.log(`🌐 Local: http://localhost:${PORT}`);
+  console.log(`📱 Red:   http://192.168.1.37:${PORT}`);
   console.log('');
-  
+
   // 🎯 Sistema de Tarifas Dinámicas
   console.log('🎯 Sistema de Tarifas Dinámicas ACTIVO');
   console.log('   Los cron jobs están configurados para sincronizar eventos automáticamente');
