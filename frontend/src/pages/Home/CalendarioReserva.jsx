@@ -107,7 +107,7 @@ const CalendarioReserva = ({
     if (view !== 'month') return '';
 
     const fechaStr = date.toISOString().split('T')[0];
-    const clases = ['relative flex items-center justify-center h-14 md:h-16 font-semibold text-base rounded-xl transition-all duration-200'];
+    const clases = ['cal-tile relative flex items-center justify-center font-semibold rounded-xl transition-all duration-200'];
 
     // Fecha ocupada
     if (esFechaOcupada(date)) {
@@ -285,30 +285,44 @@ const CalendarioReserva = ({
       {/* Leyenda */}
       <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
         <p className="text-xs font-bold text-gray-700 mb-3">LEYENDA:</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+        <div className="grid gap-3 text-sm [grid-template-columns:repeat(auto-fit,minmax(160px,1fr))]">
           <div className="flex items-center">
             <div className="w-4 h-4 rounded bg-red-500 mr-2"></div>
-            <span className="text-gray-700">Ocupado</span>
+            <span className="text-gray-700 font-medium whitespace-nowrap">Ocupado</span>
           </div>
           <div className="flex items-center">
             <div className="w-4 h-4 rounded bg-gray-300 mr-2"></div>
-            <span className="text-gray-700">No disponible</span>
+            <span className="text-gray-700 font-medium whitespace-nowrap">No disponible</span>
           </div>
           <div className="flex items-center">
             <div className="w-4 h-4 rounded bg-green-500 mr-2"></div>
-            <span className="text-gray-700">Entrada</span>
+            <span className="text-gray-700 font-medium whitespace-nowrap">Entrada</span>
           </div>
           <div className="flex items-center">
             <div className="w-4 h-4 rounded bg-blue-500 mr-2"></div>
-            <span className="text-gray-700">Salida</span>
+            <span className="text-gray-700 font-medium whitespace-nowrap">Salida</span>
           </div>
         </div>
       </div>
 
       {/* Estilos globales para react-calendar usando Tailwind */}
       <style jsx>{`
+        .calendario-tailwind {
+          /* Tamaños fluidos según viewport */
+          --cal-nav-font: clamp(14px, 3.2vw, 18px);
+          /* Más pequeño en móvil para encajar en el modal */
+          --cal-tile-size: clamp(32px, 7.2vw, 56px);
+          --cal-tile-font: clamp(12px, 3.2vw, 16px);
+          --cal-emoji: clamp(10px, 2.6vw, 12px);
+        }
+
         .calendario-tailwind :global(.react-calendar) {
-          @apply w-full border-none rounded-2xl p-5 bg-white shadow-lg;
+          @apply w-full max-w-full border-none rounded-2xl p-3 sm:p-5 bg-white shadow-lg;
+          min-width: 0;
+        }
+
+        .calendario-tailwind :global(.react-calendar__viewContainer) {
+          min-width: 0;
         }
 
         .calendario-tailwind :global(.react-calendar__navigation) {
@@ -316,7 +330,8 @@ const CalendarioReserva = ({
         }
 
         .calendario-tailwind :global(.react-calendar__navigation button) {
-          @apply min-w-[44px] h-12 bg-transparent rounded-xl font-bold text-lg text-gray-800 hover:bg-gray-100 disabled:opacity-30 transition-all;
+          @apply min-w-[40px] h-11 sm:h-12 bg-transparent rounded-xl font-bold text-base sm:text-lg text-gray-800 hover:bg-gray-100 disabled:opacity-30 transition-all;
+          font-size: var(--cal-nav-font);
         }
 
         .calendario-tailwind :global(.react-calendar__navigation__label) {
@@ -335,8 +350,26 @@ const CalendarioReserva = ({
           @apply no-underline;
         }
 
+        /* Fuerza un layout estable y responsivo de 7 columnas */
+        .calendario-tailwind :global(.react-calendar__month-view__weekdays),
+        .calendario-tailwind :global(.react-calendar__month-view__days) {
+          display: grid;
+          grid-template-columns: repeat(7, minmax(0, 1fr));
+        }
+
         .calendario-tailwind :global(.react-calendar__tile) {
           @apply m-0.5 border-2 border-transparent;
+          width: 100%;
+        }
+
+        .calendario-tailwind :global(.cal-tile) {
+          height: var(--cal-tile-size);
+          font-size: var(--cal-tile-font);
+          line-height: 1;
+        }
+
+        .calendario-tailwind :global(.cal-tile span) {
+          font-size: var(--cal-emoji);
         }
 
         .calendario-tailwind :global(.react-calendar__tile--now) {
@@ -362,6 +395,10 @@ const CalendarioReserva = ({
           
           .calendario-tailwind :global(.react-calendar__tile) {
             @apply text-sm;
+          }
+
+          .calendario-tailwind :global(.react-calendar__navigation) {
+            @apply mb-3;
           }
         }
       `}</style>

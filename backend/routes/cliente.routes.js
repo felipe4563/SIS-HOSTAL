@@ -1,6 +1,9 @@
 import express from 'express';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
+import { initAbility } from '../middlewares/initAbility.js';
+import { checkAbility } from '../middlewares/checkAbility.js';
 import { 
+  crearCliente,
   obtenerClientes,
   obtenerClientePorId,
   actualizarCliente,
@@ -14,13 +17,16 @@ const router = express.Router();
 // ========================================
 
 // Obtener todos los clientes (admin)
-router.get('/', authMiddleware, obtenerClientes);
+router.get('/', authMiddleware, initAbility, checkAbility('read', 'Cliente'), obtenerClientes);
+
+// Crear cliente (admin)
+router.post('/', authMiddleware, initAbility, checkAbility('create', 'Cliente'), crearCliente);
 
 // Obtener cliente por ID (admin)
-router.get('/:id', authMiddleware, obtenerClientePorId);
+router.get('/:id', authMiddleware, initAbility, checkAbility('read', 'Cliente'), obtenerClientePorId);
 
 // Eliminar cliente (admin)
-router.delete('/:id', authMiddleware, eliminarCliente);
+router.delete('/:id', authMiddleware, initAbility, checkAbility('delete', 'Cliente'), eliminarCliente);
 
 // ========================================
 // RUTAS COMPARTIDAS (Admin y Cliente)

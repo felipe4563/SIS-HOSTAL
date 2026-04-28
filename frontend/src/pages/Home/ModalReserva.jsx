@@ -5,6 +5,7 @@ import { verificarDisponibilidad } from '../../services/habitacion';
 import { crearReserva } from '../../services/reserva';
 import { calcularPrecioDinamico } from '../../services/pricing';
 import { iniciarPago } from '../../services/pago'; // 👈 NUEVO IMPORT
+import CalendarioReserva from './CalendarioReserva';
 
 const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
   const { usuario } = useContext(AuthContext);
@@ -72,6 +73,19 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
       setVerificando(false);
     }
   };
+
+  const handleFechasChange = (entrada, salida) => {
+    setFechaEntrada(entrada);
+    setFechaSalida(salida);
+    setDisponible(null);
+    setError('');
+  };
+
+  useEffect(() => {
+    if (fechaEntrada && fechaSalida) {
+      handleVerificarDisponibilidad();
+    }
+  }, [fechaEntrada, fechaSalida]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -186,8 +200,6 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
     }
   };
 
-  const fechaMinima = new Date().toISOString().split('T')[0];
-
   // 🎨 Función para obtener el color del ajuste
   const getAjusteColor = (valor) => {
     if (valor > 0) return 'text-red-600';
@@ -196,11 +208,11 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[95vh] overflow-hidden transform animate-slideUp">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4 animate-fadeIn">
+      <div className="bg-white rounded-3xl shadow-2xl w-full sm:max-w-3xl max-h-[95vh] overflow-hidden transform animate-slideUp">
         
         {/* 🎨 Header Premium con degradado */}
-        <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700 text-white p-8 overflow-hidden">
+        <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700 text-white p-5 sm:p-6 md:p-8 overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/20 rounded-full translate-y-1/2 -translate-x-1/2 blur-2xl"></div>
           
@@ -246,7 +258,7 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
         </div>
 
         {/* 📋 Contenido del formulario */}
-        <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto max-h-[calc(95vh-180px)]">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 md:p-8 space-y-6 overflow-y-auto max-h-[calc(95vh-160px)]">
           
           {/* 👤 Info del usuario */}
           {usuario && (
@@ -263,119 +275,98 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
             </div>
           )}
 
-          {/* 📅 Fechas */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="group">
-              <label className="flex items-center text-sm font-bold text-gray-700 mb-3">
-                <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Fecha de entrada
-              </label>
-              <input
-                type="date"
-                value={fechaEntrada}
-                onChange={(e) => setFechaEntrada(e.target.value)}
-                onBlur={handleVerificarDisponibilidad}
-                min={fechaMinima}
-                required
-                className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 font-medium"
-              />
-            </div>
-
-            <div className="group">
-              <label className="flex items-center text-sm font-bold text-gray-700 mb-3">
-                <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Fecha de salida
-              </label>
-              <input
-                type="date"
-                value={fechaSalida}
-                onChange={(e) => setFechaSalida(e.target.value)}
-                onBlur={handleVerificarDisponibilidad}
-                min={fechaEntrada || fechaMinima}
-                required
-                className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 font-medium"
-              />
-            </div>
-          </div>
-
-          {/* 👥 Huéspedes */}
-          <div className="bg-gray-50 rounded-2xl p-6 space-y-4 border border-gray-100">
-            <h3 className="font-bold text-gray-900 flex items-center">
-              <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-              Cantidad de huéspedes
-            </h3>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-semibold text-gray-700 mb-2 block">
-                  Adultos
-                </label>
-                <div className="relative">
-                  <select
-                    value={cantidadAdultos}
-                    onChange={(e) => setCantidadAdultos(Number(e.target.value))}
-                    required
-                    className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all appearance-none font-semibold cursor-pointer bg-white"
-                  >
-                    {[1, 2, 3, 4, 5, 6].map(num => (
-                      <option key={num} value={num}>{num} {num === 1 ? 'adulto' : 'adultos'}</option>
-                    ))}
-                  </select>
-                  <svg className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
-              
-              <div>
-                <label className="text-sm font-semibold text-gray-700 mb-2 block">
-                  Niños
-                </label>
-                <div className="relative">
-                  <select
-                    value={cantidadNinos}
-                    onChange={(e) => setCantidadNinos(Number(e.target.value))}
-                    className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all appearance-none font-semibold cursor-pointer bg-white"
-                  >
-                    {[0, 1, 2, 3, 4, 5].map(num => (
-                      <option key={num} value={num}>{num} {num === 1 ? 'niño' : 'niños'}</option>
-                    ))}
-                  </select>
-                  <svg className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
+          {/* 🧩 Layout intuitivo: calendario + datos */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            {/* 📅 Fechas con calendario */}
+            <div className="min-w-0">
+              <div className="rounded-2xl border border-gray-200 p-3 sm:p-4 bg-white overflow-hidden">
+                <CalendarioReserva
+                  idHabitacion={habitacion.id_habitacion}
+                  fechaEntrada={fechaEntrada}
+                  fechaSalida={fechaSalida}
+                  onFechasChange={handleFechasChange}
+                />
               </div>
             </div>
-          </div>
 
-          {/* ⏰ Hora de llegada */}
-          <div>
-            <label className="flex items-center text-sm font-bold text-gray-700 mb-3">
-              <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Hora estimada de llegada
-              <span className="ml-2 text-xs font-normal text-gray-500">(opcional)</span>
-            </label>
-            <input
-              type="time"
-              value={horaLlegada}
-              onChange={(e) => setHoraLlegada(e.target.value)}
-              className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-medium"
-            />
-            <p className="text-xs text-gray-500 mt-2 flex items-center">
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Check-in disponible de 14:00 a 22:00
-            </p>
+            {/* 👥 Datos de la reserva */}
+            <div className="min-w-0 space-y-4">
+              {/* 👥 Huéspedes */}
+              <div className="bg-gray-50 rounded-2xl p-5 sm:p-6 space-y-4 border border-gray-100">
+                <h3 className="font-bold text-gray-900 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  Cantidad de huéspedes
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                      Adultos
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={cantidadAdultos}
+                        onChange={(e) => setCantidadAdultos(Number(e.target.value))}
+                        required
+                        className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all appearance-none font-semibold cursor-pointer bg-white"
+                      >
+                        {[1, 2, 3, 4, 5, 6].map(num => (
+                          <option key={num} value={num}>{num} {num === 1 ? 'adulto' : 'adultos'}</option>
+                        ))}
+                      </select>
+                      <svg className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                      Niños
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={cantidadNinos}
+                        onChange={(e) => setCantidadNinos(Number(e.target.value))}
+                        className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all appearance-none font-semibold cursor-pointer bg-white"
+                      >
+                        {[0, 1, 2, 3, 4, 5].map(num => (
+                          <option key={num} value={num}>{num} {num === 1 ? 'niño' : 'niños'}</option>
+                        ))}
+                      </select>
+                      <svg className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ⏰ Hora de llegada */}
+              <div className="bg-white rounded-2xl p-5 sm:p-6 border border-gray-200">
+                <label className="flex items-center text-sm font-bold text-gray-700 mb-3">
+                  <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Hora estimada de llegada
+                  <span className="ml-2 text-xs font-normal text-gray-500">(opcional)</span>
+                </label>
+                <input
+                  type="time"
+                  value={horaLlegada}
+                  onChange={(e) => setHoraLlegada(e.target.value)}
+                  className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all font-medium"
+                />
+                <p className="text-xs text-gray-500 mt-2 flex items-center">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Check-in disponible de 14:00 a 22:00
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* 💰 Resumen de la reserva CON PRICING DINÁMICO */}
@@ -604,7 +595,7 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
           )}
 
           {/* 🎯 Botones de acción */}
-          <div className="flex gap-4 pt-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sm:pt-4">
             <button
               type="button"
               onClick={onClose}

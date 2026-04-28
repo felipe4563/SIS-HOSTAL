@@ -17,7 +17,8 @@ import {
   getHabitacionesPublicas,
   getHabitacionDetalle,
   verificarDisponibilidad,
-  getTiposHabitacion
+  getTiposHabitacion,
+  obtenerFechasOcupadas
 } from '../controllers/habitacion.controller.js';
 import { upload, upload360 } from '../config/multer.js';
 
@@ -35,6 +36,9 @@ router.get('/tipos', getTiposHabitacion);
 
 // Verificar disponibilidad (público)
 router.get('/disponibilidad', verificarDisponibilidad);
+
+// Fechas ocupadas por habitación (público)
+router.get('/:id/fechas-ocupadas', obtenerFechasOcupadas);
 
 // Obtener detalle público de habitación
 router.get('/publicas/:id', getHabitacionDetalle);

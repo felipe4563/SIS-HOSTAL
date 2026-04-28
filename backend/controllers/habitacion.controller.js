@@ -758,6 +758,34 @@ export const verificarDisponibilidad = async (req, res) => {
   }
 };
 
+// Obtener fechas ocupadas por habitación en un rango
+export const obtenerFechasOcupadas = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fecha_inicio, fecha_fin } = req.query;
+
+    if (!fecha_inicio || !fecha_fin) {
+      return res.status(400).json({ message: 'fecha_inicio y fecha_fin son obligatorias' });
+    }
+
+    const [reservas] = await db.query(
+      `SELECT fecha_entrada, fecha_salida
+       FROM reserva
+       WHERE id_habitacion = ?
+         AND estado IN ('pendiente', 'confirmada')
+         AND fecha_salida >= ?
+         AND fecha_entrada <= ?
+       ORDER BY fecha_entrada ASC`,
+      [id, fecha_inicio, fecha_fin]
+    );
+
+    res.json(reservas);
+  } catch (error) {
+    console.error('❌ Error al obtener fechas ocupadas:', error);
+    res.status(500).json({ message: 'Error al obtener fechas ocupadas' });
+  }
+};
+
 // Obtener tipos de habitación
 export const getTiposHabitacion = async (req, res) => {
   try {

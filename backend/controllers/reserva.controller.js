@@ -456,3 +456,103 @@ export const eliminarReserva = async (req, res) => {
     res.status(500).json({ message: 'Error al eliminar reserva' });
   }
 };
+
+// Actualizar datos de reserva (admin)
+export const actualizarReserva = async (req, res) => {
+  const { id } = req.params;
+  const {
+    id_cliente,
+    id_habitacion,
+    fecha_entrada,
+    fecha_salida,
+    cantidad_adultos = 1,
+    cantidad_ninos = 0,
+    hora_llegada = null
+  } = req.body;
+
+  if (!id_cliente || !id_habitacion || !fecha_entrada || !fecha_salida) {
+    return res.status(400).json({ message: 'Todos los campos obligatorios deben enviarse' });
+  }
+
+  try {
+    const [reservaRows] = await db.query(
+      'SELECT id_reserva, estado FROM reserva WHERE id_reserva = ?',
+      [id]
+    );
+
+    if (reservaRows.length === 0) {
+      return res.status(404).json({ message: 'Reserva no encontrada' });
+    }
+
+    if (['cancelada', 'finalizada'].includes(reservaRows[0].estado)) {
+      return res.status(400).json({ message: 'No se puede editar una reserva cancelada o finalizada' });
+    }
+
+    const [conflictos] = await db.query(
+      `SELECT COUNT(*) AS conflictos
+       FROM reserva
+       WHERE id_habitacion = ?
+         AND id_reserva <> ?
+         AND estado IN ('pendiente', 'confirmada')
+         AND (
+           (fecha_entrada <= ? AND fecha_salida >= ?) OR
+           (fecha_entrada <= ? AND fecha_salida >= ?) OR
+           (fecha_entrada >= ? AND fecha_salida <= ?)
+         )`,
+      [
+        id_habitacion,
+        id,
+        fecha_salida, fecha_entrada,
+        fecha_salida, fecha_salida,
+        fecha_entrada, fecha_salida
+      ]
+    );
+
+    if (conflictos[0].conflictos > 0) {
+      return res.status(400).json({ message: 'La habitación no está disponible para esas fechas' });
+    }
+
+    const precioCalculado = await pricingDinamicoService.calcularPrecio(
+      id_habitacion,
+      fecha_entrada,
+      fecha_salida,
+      req.ip
+    );
+
+    await db.query(
+      `UPDATE reserva
+       SET id_cliente = ?,
+           id_habitacion = ?,
+           fecha_entrada = ?,
+           fecha_salida = ?,
+           total = ?,
+           cantidad_adultos = ?,
+           cantidad_ninos = ?,
+           hora_llegada = ?
+       WHERE id_reserva = ?`,
+      [
+        id_cliente,
+        id_habitacion,
+        fecha_entrada,
+        fecha_salida,
+        precioCalculado.precio_total,
+        cantidad_adultos,
+        cantidad_ninos,
+        hora_llegada || null,
+        id
+      ]
+    );
+
+    res.json({
+      message: 'Reserva actualizada exitosamente',
+      detalles_precio: {
+        precio_por_noche: precioCalculado.precio_por_noche,
+        precio_total: precioCalculado.precio_total,
+        noches: precioCalculado.noches
+      }
+    });
+  } catch (error) {
+    console.error('Error al actualizar reserva:', error);
+    res.status(500).json({ message: 'Error al actualizar reserva' });
+  }
+};

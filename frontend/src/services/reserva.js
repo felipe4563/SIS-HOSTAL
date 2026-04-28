@@ -41,3 +41,9 @@ export const eliminarReserva = async (id) => {
   const response = await api.delete(`/reservas/${id}`);
   return response.data;
 };
+
+// Actualizar datos de reserva (admin)
+export const actualizarReserva = async (id, datos) => {
+  const response = await api.put(`/reservas/${id}`, datos);
+  return response.data;
+};

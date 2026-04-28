@@ -100,12 +100,51 @@ export const actualizarRol = async (req, res) => {
  */
 export const eliminarRol = async (req, res) => {
   const { id } = req.params;
+  const idRol = Number(id);
+
+  if (!Number.isInteger(idRol) || idRol <= 0) {
+    return res.status(400).json({ message: 'ID de rol inválido' });
+  }
+
+  const connection = await db.getConnection();
+
   try {
-    await db.query(`DELETE FROM rol WHERE id_rol = ?`, [id]);
+    await connection.beginTransaction();
+
+    const [rolRows] = await connection.query(`SELECT id_rol FROM rol WHERE id_rol = ?`, [idRol]);
+    if (rolRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ message: 'Rol no encontrado' });
+    }
+
+    const [usuarios] = await connection.query(
+      `SELECT COUNT(*) AS total FROM usuario WHERE id_rol = ?`,
+      [idRol]
+    );
+
+    if (usuarios[0].total > 0) {
+      await connection.rollback();
+      return res.status(409).json({
+        message: 'No se puede eliminar el rol porque está asignado a uno o más usuarios'
+      });
+    }
+
+    await connection.query(`DELETE FROM rol_permiso WHERE id_rol = ?`, [idRol]);
+    await connection.query(`DELETE FROM rol WHERE id_rol = ?`, [idRol]);
+
+    await connection.commit();
     res.json({ message: 'Rol eliminado' });
   } catch (err) {
+    await connection.rollback();
     console.error(err);
+    if (err.code === 'ER_ROW_IS_REFERENCED_2') {
+      return res.status(409).json({
+        message: 'No se puede eliminar el rol porque tiene registros relacionados'
+      });
+    }
     res.status(500).json({ message: 'Error al eliminar rol' });
+  } finally {
+    connection.release();
   }
 };
 
@@ -113,34 +152,53 @@ export const eliminarRol = async (req, res) => {
  * Asignar permisos a un rol
  */
 export const asignarPermisos = async (req, res) => {
-  const { id } = req.params;
+  const idRol = Number(req.params.id);
   const { permisos = [] } = req.body; // array de id_permiso
 
+  if (!Number.isInteger(idRol) || idRol <= 0) {
+    return res.status(400).json({ message: 'ID de rol inválido' });
+  }
+
   try {
+    const [rolRows] = await db.query(`SELECT id_rol FROM rol WHERE id_rol = ?`, [idRol]);
+    if (rolRows.length === 0) {
+      return res.status(404).json({ message: 'Rol no encontrado' });
+    }
+
+    const permisosLimpios = [...new Set(
+      permisos
+        .map((p) => Number(p))
+        .filter((p) => Number.isInteger(p) && p > 0)
+    )];
+
+    if (permisosLimpios.length !== permisos.length) {
+      return res.status(400).json({ message: 'Lista de permisos inválida' });
+    }
+
     // Validar que los permisos existen
-    if (permisos.length > 0) {
+    if (permisosLimpios.length > 0) {
       const [existing] = await db.query(
         `SELECT id_permiso FROM permisos WHERE id_permiso IN (?)`, 
-        [permisos]
+        [permisosLimpios]
       );
 
       const existingIds = existing.map(p => p.id_permiso);
-      const invalid = permisos.filter(p => !existingIds.includes(p));
+      const invalid = permisosLimpios.filter(p => !existingIds.includes(p));
       if (invalid.length > 0) {
         return res.status(400).json({ message: 'Permisos inválidos', invalid });
       }
     }
 
     // Primero eliminar permisos existentes
-    await db.query(`DELETE FROM rol_permiso WHERE id_rol = ?`, [id]);
+    await db.query(`DELETE FROM rol_permiso WHERE id_rol = ?`, [idRol]);
 
     // Insertar permisos nuevos
-    const values = permisos.map(id_permiso => [id, id_permiso]);
+    const values = permisosLimpios.map(id_permiso => [idRol, id_permiso]);
     if (values.length > 0) {
       await db.query(`INSERT INTO rol_permiso (id_rol, id_permiso) VALUES ?`, [values]);
     }
 
-    res.json({ message: 'Permisos asignados', permisos });
+    res.json({ message: 'Permisos asignados', permisos: permisosLimpios });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error al asignar permisos' });

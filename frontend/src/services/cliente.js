@@ -1,5 +1,11 @@
 import api from './api';
 
+// Crear cliente (admin)
+export const crearCliente = async (datos) => {
+  const response = await api.post('/clientes', datos);
+  return response.data;
+};
+
 // Obtener todos los clientes (admin)
 export const obtenerClientes = async () => {
   const response = await api.get('/clientes');

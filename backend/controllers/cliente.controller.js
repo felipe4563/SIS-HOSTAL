@@ -1,5 +1,50 @@
 import db from '../config/db.js';
 
+// Crear cliente (admin)
+export const crearCliente = async (req, res) => {
+  const { nombre, apellido, ci, correo, celular, direccion, estado = 1 } = req.body;
+
+  if (!nombre || !apellido) {
+    return res.status(400).json({ message: 'Nombre y apellido son obligatorios' });
+  }
+
+  if (!ci && !correo) {
+    return res.status(400).json({ message: 'Debes registrar al menos CI o correo' });
+  }
+
+  try {
+    if (ci) {
+      const [ciExistente] = await db.query('SELECT id_cliente FROM cliente WHERE ci = ?', [ci]);
+      if (ciExistente.length > 0) {
+        return res.status(400).json({ message: 'El CI ya está registrado' });
+      }
+    }
+
+    if (correo) {
+      const [correoExistente] = await db.query('SELECT id_cliente FROM cliente WHERE correo = ?', [correo]);
+      if (correoExistente.length > 0) {
+        return res.status(400).json({ message: 'El correo ya está registrado' });
+      }
+    }
+
+    const [result] = await db.query(
+      `INSERT INTO cliente (nombre, apellido, ci, correo, celular, direccion, estado)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [nombre, apellido, ci || null, correo || null, celular || null, direccion || null, estado]
+    );
+
+    const [clienteCreado] = await db.query('SELECT * FROM cliente WHERE id_cliente = ?', [result.insertId]);
+
+    res.status(201).json({
+      message: 'Cliente creado exitosamente',
+      cliente: clienteCreado[0]
+    });
+  } catch (error) {
+    console.error('Error al crear cliente:', error);
+    res.status(500).json({ message: 'Error al crear cliente' });
+  }
+};
+
 // Obtener todos los clientes (admin)
 export const obtenerClientes = async (req, res) => {
   try {
