@@ -9,6 +9,8 @@ const ReservasList = ({
   onRetry,
   onEdit,
   onDelete,
+  onCheckIn,
+  onCheckOut,
   onOpenEstadoModal
 }) => {
   const formatearFecha = (fecha) =>
@@ -44,6 +46,17 @@ const ReservasList = ({
         {estado.toUpperCase()}
       </span>
     );
+  };
+
+  const formatearFechaHora = (fecha) => {
+    if (!fecha) return "";
+    return new Date(fecha).toLocaleString("es-ES", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
   };
 
   const reservasFiltradas = reservas.filter((reserva) => {
@@ -124,6 +137,29 @@ const ReservasList = ({
                     <td className="px-6 py-4 whitespace-nowrap">{getEstadoBadge(reserva.estado)}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-2">
+                        {/* Check-in / Check-out */}
+                        {reserva.estado !== "cancelada" && reserva.estado !== "finalizada" && (
+                          <>
+                            {!reserva.checkin_at ? (
+                              <button
+                                onClick={() => onCheckIn?.(reserva)}
+                                className="text-green-700 hover:text-green-900 font-semibold text-sm"
+                                title="Check-in"
+                              >
+                                🛬
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => onCheckOut?.(reserva)}
+                                className="text-amber-700 hover:text-amber-900 font-semibold text-sm"
+                                title={`Check-out (check-in: ${formatearFechaHora(reserva.checkin_at)})`}
+                              >
+                                🛫
+                              </button>
+                            )}
+                          </>
+                        )}
+
                         {reserva.estado !== "cancelada" && reserva.estado !== "finalizada" && (
                           <>
                             <button onClick={() => onEdit(reserva)} className="text-indigo-600 hover:text-indigo-800 font-semibold text-sm" title="Editar reserva">📝</button>

@@ -382,11 +382,13 @@ export const obtenerTodasReservas = async (req, res) => {
         c.ci as ci_cliente,
         c.correo as correo_cliente,
         DATEDIFF(r.fecha_salida, r.fecha_entrada) as noches,
-        CONCAT(c.nombre, ' ', c.apellido) as cliente_completo
+        CONCAT(c.nombre, ' ', c.apellido) as cliente_completo,
+        o.fecha_ingreso as checkin_at
        FROM reserva r
        INNER JOIN habitacion h ON r.id_habitacion = h.id_habitacion
        INNER JOIN tipo t ON h.id_tipo = t.id_tipo
        INNER JOIN cliente c ON r.id_cliente = c.id_cliente
+       LEFT JOIN ocupacion o ON o.id_reserva = r.id_reserva AND o.fecha_salida IS NULL
        ORDER BY r.fecha_entrada DESC`
     );
 
@@ -394,6 +396,161 @@ export const obtenerTodasReservas = async (req, res) => {
   } catch (error) {
     console.error('Error al obtener todas las reservas:', error);
     res.status(500).json({ message: 'Error al obtener reservas' });
+  }
+};
+
+// ============================================
+// ✅ CHECK-IN / CHECK-OUT (ADMIN)
+// ============================================
+
+export const checkInReserva = async (req, res) => {
+  const idReserva = Number(req.params.id);
+  if (!Number.isInteger(idReserva) || idReserva <= 0) {
+    return res.status(400).json({ message: 'ID de reserva inválido' });
+  }
+
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [reservas] = await connection.query(
+      `SELECT id_reserva, id_habitacion, estado
+       FROM reserva
+       WHERE id_reserva = ?
+       FOR UPDATE`,
+      [idReserva]
+    );
+
+    if (reservas.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ message: 'Reserva no encontrada' });
+    }
+
+    const reserva = reservas[0];
+
+    if (reserva.estado === 'cancelada' || reserva.estado === 'finalizada') {
+      await connection.rollback();
+      return res.status(400).json({ message: `No se puede hacer check-in a una reserva ${reserva.estado}` });
+    }
+
+    const [ocupacionActiva] = await connection.query(
+      `SELECT id_ocupacion, fecha_ingreso
+       FROM ocupacion
+       WHERE id_reserva = ? AND fecha_salida IS NULL
+       LIMIT 1`,
+      [idReserva]
+    );
+
+    if (ocupacionActiva.length > 0) {
+      await connection.commit();
+      return res.json({
+        message: 'La reserva ya tiene un check-in activo',
+        ocupacion: ocupacionActiva[0]
+      });
+    }
+
+    const [insert] = await connection.query(
+      `INSERT INTO ocupacion (id_reserva, fecha_ingreso)
+       VALUES (?, NOW())`,
+      [idReserva]
+    );
+
+    // Asegurar estado de reserva (en check-in queda confirmada)
+    if (reserva.estado !== 'confirmada') {
+      await connection.query(
+        `UPDATE reserva SET estado = 'confirmada' WHERE id_reserva = ?`,
+        [idReserva]
+      );
+    }
+
+    // Marcar habitación ocupada (estado actual)
+    await connection.query(
+      `UPDATE habitacion SET estado = 'ocupada' WHERE id_habitacion = ?`,
+      [reserva.id_habitacion]
+    );
+
+    await connection.commit();
+    return res.json({ message: 'Check-in realizado', id_ocupacion: insert.insertId });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error en check-in:', error);
+    return res.status(500).json({ message: 'Error al realizar check-in' });
+  } finally {
+    connection.release();
+  }
+};
+
+export const checkOutReserva = async (req, res) => {
+  const idReserva = Number(req.params.id);
+  if (!Number.isInteger(idReserva) || idReserva <= 0) {
+    return res.status(400).json({ message: 'ID de reserva inválido' });
+  }
+
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [reservas] = await connection.query(
+      `SELECT id_reserva, id_habitacion, estado
+       FROM reserva
+       WHERE id_reserva = ?
+       FOR UPDATE`,
+      [idReserva]
+    );
+
+    if (reservas.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ message: 'Reserva no encontrada' });
+    }
+
+    const reserva = reservas[0];
+
+    if (reserva.estado === 'cancelada') {
+      await connection.rollback();
+      return res.status(400).json({ message: 'No se puede hacer check-out a una reserva cancelada' });
+    }
+
+    const [ocupacionActiva] = await connection.query(
+      `SELECT id_ocupacion, fecha_ingreso
+       FROM ocupacion
+       WHERE id_reserva = ? AND fecha_salida IS NULL
+       LIMIT 1
+       FOR UPDATE`,
+      [idReserva]
+    );
+
+    if (ocupacionActiva.length === 0) {
+      await connection.rollback();
+      return res.status(400).json({ message: 'No hay check-in activo para esta reserva' });
+    }
+
+    await connection.query(
+      `UPDATE ocupacion
+       SET fecha_salida = NOW()
+       WHERE id_ocupacion = ?`,
+      [ocupacionActiva[0].id_ocupacion]
+    );
+
+    // Finalizar reserva
+    await connection.query(
+      `UPDATE reserva SET estado = 'finalizada' WHERE id_reserva = ?`,
+      [idReserva]
+    );
+
+    // Habitacion pasa a limpieza (flujo típico)
+    await connection.query(
+      `UPDATE habitacion SET estado = 'limpieza' WHERE id_habitacion = ?`,
+      [reserva.id_habitacion]
+    );
+
+    await connection.commit();
+    return res.json({ message: 'Check-out realizado' });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error en check-out:', error);
+    return res.status(500).json({ message: 'Error al realizar check-out' });
+  } finally {
+    connection.release();
   }
 };
 

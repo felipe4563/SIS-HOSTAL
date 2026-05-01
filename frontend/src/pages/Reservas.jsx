@@ -4,7 +4,9 @@ import {
   actualizarEstadoReserva,
   eliminarReserva,
   crearReserva,
-  actualizarReserva
+  actualizarReserva,
+  checkInReserva,
+  checkOutReserva
 } from "../services/reserva";
 import { obtenerClientes } from "../services/cliente";
 import { listarHabitaciones } from "../services/habitacion";
@@ -77,6 +79,28 @@ const Reservas = () => {
       cargarDatos();
     } catch (err) {
       alert(err.response?.data?.message || 'Error al eliminar reserva');
+    }
+  };
+
+  const handleCheckIn = async (reserva) => {
+    if (!window.confirm(`¿Realizar check-in de la reserva #${reserva.id_reserva}?`)) return;
+    try {
+      await checkInReserva(reserva.id_reserva);
+      alert("Check-in realizado");
+      await cargarDatos();
+    } catch (err) {
+      alert(err.response?.data?.message || "Error al hacer check-in");
+    }
+  };
+
+  const handleCheckOut = async (reserva) => {
+    if (!window.confirm(`¿Realizar check-out de la reserva #${reserva.id_reserva}?`)) return;
+    try {
+      await checkOutReserva(reserva.id_reserva);
+      alert("Check-out realizado");
+      await cargarDatos();
+    } catch (err) {
+      alert(err.response?.data?.message || "Error al hacer check-out");
     }
   };
 
@@ -185,6 +209,8 @@ const Reservas = () => {
         onRetry={cargarDatos}
         onEdit={openEditarForm}
         onDelete={handleEliminarReserva}
+        onCheckIn={handleCheckIn}
+        onCheckOut={handleCheckOut}
         onOpenEstadoModal={(reserva) => {
           setReservaSeleccionada(reserva);
           setMostrarModalEstado(true);

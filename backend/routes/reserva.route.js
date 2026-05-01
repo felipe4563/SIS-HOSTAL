@@ -10,7 +10,9 @@ import {
   actualizarEstadoReserva,
   eliminarReserva, 
   crearReservaMultiple,
-  actualizarReserva
+  actualizarReserva,
+  checkInReserva,
+  checkOutReserva
 } from '../controllers/reserva.controller.js';
 
 const router = express.Router();
@@ -35,6 +37,10 @@ router.patch('/:id/estado', authMiddleware, initAbility, checkAbility('update', 
 
 // Actualizar datos de reserva (admin)
 router.put('/:id', authMiddleware, initAbility, checkAbility('update', 'Reserva'), actualizarReserva);
+
+// Check-in / Check-out (admin)
+router.post('/:id/checkin', authMiddleware, initAbility, checkAbility('update', 'Reserva'), checkInReserva);
+router.post('/:id/checkout', authMiddleware, initAbility, checkAbility('update', 'Reserva'), checkOutReserva);
 
 // Eliminar reserva (admin)
 router.delete('/:id', authMiddleware, initAbility, checkAbility('delete', 'Reserva'), eliminarReserva);

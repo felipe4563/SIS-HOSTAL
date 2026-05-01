@@ -10,6 +10,32 @@ import { getPermisos } from "../../services/permisos.js";
 import RolesForm from "./RolesForm.jsx";
 import RolesItemsList from "./RolesItemsList.jsx";
 
+const normalizar = (v = "") => String(v).trim().toLowerCase();
+
+const parsePermiso = (nombre = "") => {
+  const n = normalizar(nombre);
+
+  // Formato recomendado: "recurso.accion"
+  if (n.includes(".")) {
+    const [modulo, accion] = n.split(".");
+    return { modulo, accion, formato: "dot" };
+  }
+
+  // Formato alterno: "accion_modulo" (ej: ver_reserva)
+  if (n.includes("_")) {
+    const partes = n.split("_").filter(Boolean);
+    if (partes.length >= 2) {
+      const accion = partes[0];
+      const modulo = partes[partes.length - 1];
+      return { modulo, accion, formato: "underscore" };
+    }
+  }
+
+  return { modulo: "general", accion: n, formato: "unknown" };
+};
+
+const accionesDeLectura = new Set(["ver", "listar", "read", "list"]);
+
 const RolesList = () => {
   const [roles, setRoles] = useState([]);
   const [permisos, setPermisos] = useState([]);
@@ -61,29 +87,128 @@ const RolesList = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleCheck = (id_permiso) => {
-    let nuevaLista = [...formData.permisos];
+    const permiso = permisos.find((p) => p.id_permiso === id_permiso);
+    const { modulo, accion } = parsePermiso(permiso?.nombre);
 
-    if (nuevaLista.includes(id_permiso)) {
+    const byId = new Map(permisos.map((p) => [p.id_permiso, p]));
+    const byNombre = new Map(permisos.map((p) => [normalizar(p.nombre), p]));
+
+    const buscarPermisoVer = (mod) => {
+      // Preferimos formato dot: "modulo.ver"
+      const candidatoDot = byNombre.get(`${normalizar(mod)}.ver`);
+      if (candidatoDot) return candidatoDot.id_permiso;
+
+      // Formato underscore: "ver_modulo"
+      const candidatoUnderscore = byNombre.get(`ver_${normalizar(mod)}`);
+      if (candidatoUnderscore) return candidatoUnderscore.id_permiso;
+
+      // Fallback: algo que termine con ".ver" y contenga el módulo
+      for (const [nombreKey, p] of byNombre.entries()) {
+        if (nombreKey.endsWith(".ver") && nombreKey.startsWith(`${normalizar(mod)}.`)) {
+          return p.id_permiso;
+        }
+      }
+      return null;
+    };
+
+    const getPermisosSeleccionadosDeModulo = (mod, listaIds) => {
+      const modKey = normalizar(mod);
+      return listaIds.filter((id) => {
+        const p = byId.get(id);
+        if (!p) return false;
+        const parsed = parsePermiso(p.nombre);
+        return normalizar(parsed.modulo) === modKey;
+      });
+    };
+
+    let nuevaLista = [...formData.permisos];
+    const yaSeleccionado = nuevaLista.includes(id_permiso);
+
+    if (yaSeleccionado) {
+      // Si intenta quitar "ver" pero hay otros permisos del módulo, no lo permitimos.
+      const esLectura = accionesDeLectura.has(normalizar(accion));
+      if (esLectura) {
+        const seleccionadosModulo = getPermisosSeleccionadosDeModulo(modulo, nuevaLista).filter(
+          (id) => id !== id_permiso
+        );
+        if (seleccionadosModulo.length > 0) {
+          // Mantener "ver" activo
+          setFormData({ ...formData, permisos: nuevaLista });
+          return;
+        }
+      }
+
       nuevaLista = nuevaLista.filter((p) => p !== id_permiso);
-    } else {
-      nuevaLista.push(id_permiso);
+      setFormData({ ...formData, permisos: nuevaLista });
+      return;
     }
 
-    setFormData({ ...formData, permisos: nuevaLista });
+    // Agregar el permiso seleccionado
+    nuevaLista.push(id_permiso);
+
+    // Regla: al seleccionar cualquier permiso de un módulo, activar automáticamente su permiso "ver"
+    // - Incluye cualquier permiso que contenga/sea del módulo "rol"
+    const moduloObjetivo = normalizar(modulo);
+    const idPermisoVer = buscarPermisoVer(moduloObjetivo);
+
+    const debeForzarVer =
+      !accionesDeLectura.has(normalizar(accion)) &&
+      idPermisoVer &&
+      !nuevaLista.includes(idPermisoVer);
+
+    if (debeForzarVer) {
+      nuevaLista.push(idPermisoVer);
+    }
+
+    // Caso especial solicitado: si el permiso pertenece al módulo "rol" (o contiene rol),
+    // asegurar "ver" de rol.
+    const nombrePermiso = normalizar(permiso?.nombre);
+    const pareceRol = moduloObjetivo.includes("rol") || nombrePermiso.includes("rol");
+    if (pareceRol) {
+      const idVerRol = buscarPermisoVer("rol");
+      if (idVerRol && !nuevaLista.includes(idVerRol)) {
+        nuevaLista.push(idVerRol);
+      }
+    }
+
+    setFormData({ ...formData, permisos: [...new Set(nuevaLista)] });
   };
 
   const handleSelectAllModule = (moduloPermisos, seleccionar) => {
     let nuevaLista = [...formData.permisos];
     
-    moduloPermisos.forEach(p => {
+    const byNombre = new Map(permisos.map((p) => [normalizar(p.nombre), p]));
+
+    const buscarPermisoVer = (mod) => {
+      const candidatoDot = byNombre.get(`${normalizar(mod)}.ver`);
+      if (candidatoDot) return candidatoDot.id_permiso;
+      const candidatoUnderscore = byNombre.get(`ver_${normalizar(mod)}`);
+      if (candidatoUnderscore) return candidatoUnderscore.id_permiso;
+      return null;
+    };
+
+    const moduloKey = (() => {
+      const first = moduloPermisos?.[0];
+      const parsed = parsePermiso(first?.nombre);
+      return parsed.modulo;
+    })();
+
+    moduloPermisos.forEach((p) => {
       if (seleccionar && !nuevaLista.includes(p.id_permiso)) {
         nuevaLista.push(p.id_permiso);
       } else if (!seleccionar) {
-        nuevaLista = nuevaLista.filter(id => id !== p.id_permiso);
+        nuevaLista = nuevaLista.filter((id) => id !== p.id_permiso);
       }
     });
 
-    setFormData({ ...formData, permisos: nuevaLista });
+    if (seleccionar && moduloKey) {
+      const idVer = buscarPermisoVer(moduloKey);
+      if (idVer && !nuevaLista.includes(idVer)) {
+        nuevaLista.push(idVer);
+      }
+    }
+
+    setFormData({ ...formData, permisos: [...new Set(nuevaLista)] });
   };
 
   const handleSubmit = async (e) => {

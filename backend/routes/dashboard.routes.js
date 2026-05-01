@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   getEstadisticasGenerales,
+  getDashboardOverview,
   getReservasPorEstado,
   getReservasPorPeriodo,
   getHabitacionesMasReservadas,
@@ -18,6 +19,7 @@ const router = express.Router();
 router.use(authMiddleware);
 
 // Rutas del dashboard con soporte de filtros ?periodo=mes|semana|año
+router.get('/overview', getDashboardOverview);
 router.get('/estadisticas-generales', getEstadisticasGenerales);
 router.get('/reservas-por-estado', getReservasPorEstado);
 router.get('/reservas-por-periodo', getReservasPorPeriodo); // 👈 Nuevo

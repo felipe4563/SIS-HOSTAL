@@ -4,17 +4,12 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import {
-  getEstadisticasGenerales,
-  getReservasPorEstado,
-  getReservasPorPeriodo,
-  getHabitacionesMasReservadas,
-  getMetodosPago,
-  getEstadoHabitaciones,
-  getIngresosPorPeriodo
+  getDashboardOverview
 } from '../services/dashboard.js';
 
 const Dashboard = () => {
   const [periodo, setPeriodo] = useState('mes'); // 👈 Estado para el filtro
+  const [overview, setOverview] = useState(null);
   const [estadisticasGenerales, setEstadisticasGenerales] = useState(null);
   const [reservasPorEstado, setReservasPorEstado] = useState([]);
   const [reservasPorPeriodo, setReservasPorPeriodo] = useState([]);
@@ -22,7 +17,11 @@ const Dashboard = () => {
   const [metodosPago, setMetodosPago] = useState([]);
   const [estadoHabitaciones, setEstadoHabitaciones] = useState([]);
   const [ingresosPorPeriodo, setIngresosPorPeriodo] = useState([]);
+  const [clientesFrecuentes, setClientesFrecuentes] = useState([]);
+  const [proximasEntradas, setProximasEntradas] = useState([]);
+  const [proximasSalidas, setProximasSalidas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
@@ -33,34 +32,24 @@ const Dashboard = () => {
   const cargarDatos = async () => {
     try {
       setLoading(true);
+      setError(null);
       
-      const [
-        stats, 
-        reservasEstado, 
-        reservasPer, 
-        habitaciones, 
-        pagos, 
-        estados, 
-        ingresos
-      ] = await Promise.all([
-        getEstadisticasGenerales(periodo),
-        getReservasPorEstado(periodo),
-        getReservasPorPeriodo(periodo),
-        getHabitacionesMasReservadas(periodo),
-        getMetodosPago(periodo),
-        getEstadoHabitaciones(),
-        getIngresosPorPeriodo(periodo)
-      ]);
+      const data = await getDashboardOverview(periodo);
+      setOverview(data || null);
 
-      setEstadisticasGenerales(stats || null);
-      setReservasPorEstado(reservasEstado || []);
-      setReservasPorPeriodo(reservasPer || []);
-      setHabitacionesMasReservadas(habitaciones || []);
-      setMetodosPago(pagos || []);
-      setEstadoHabitaciones(estados || []);
-      setIngresosPorPeriodo(ingresos || []);
+      setEstadisticasGenerales(data?.estadisticasGenerales || null);
+      setReservasPorEstado(data?.reservasPorEstado || []);
+      setReservasPorPeriodo(data?.reservasPorPeriodo || []);
+      setHabitacionesMasReservadas(data?.habitacionesMasReservadas || []);
+      setMetodosPago(data?.metodosPago || []);
+      setEstadoHabitaciones(data?.estadoHabitaciones || []);
+      setIngresosPorPeriodo(data?.ingresosPorPeriodo || []);
+      setClientesFrecuentes(data?.clientesFrecuentes || []);
+      setProximasEntradas(data?.proximasEntradas || []);
+      setProximasSalidas(data?.proximasSalidas || []);
     } catch (error) {
       console.error('Error al cargar datos del dashboard:', error);
+      setError('No se pudo cargar el dashboard. Verifica el servidor y tu sesión.');
     } finally {
       setLoading(false);
     }
@@ -90,6 +79,18 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
+        {error && (
+          <div className="mb-6 bg-red-50 border-2 border-red-200 rounded-xl p-4">
+            <p className="text-red-800 font-semibold">{error}</p>
+            <button
+              onClick={cargarDatos}
+              className="mt-3 px-4 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition"
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+
         {/* Header con filtros */}
         <div className="mb-6 md:mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -138,9 +139,9 @@ const Dashboard = () => {
             <div className="mt-4 bg-blue-50 border-2 border-blue-200 rounded-xl p-3">
               <p className="text-sm text-blue-800">
                 <span className="font-semibold">Periodo:</span> {getPeriodoLabel()} 
-                {estadisticasGenerales.fechaInicio && estadisticasGenerales.fechaFin && (
+                {overview?.rango?.inicio && overview?.rango?.fin && (
                   <span className="ml-2">
-                    ({new Date(estadisticasGenerales.fechaInicio).toLocaleDateString('es-ES')} - {new Date(estadisticasGenerales.fechaFin).toLocaleDateString('es-ES')})
+                    ({new Date(overview.rango.inicio).toLocaleDateString('es-ES')} - {new Date(overview.rango.fin).toLocaleDateString('es-ES')})
                   </span>
                 )}
               </p>
@@ -204,15 +205,42 @@ const Dashboard = () => {
               <div className="text-right">
                 <p className="text-amber-100 text-sm">Tasa de Ocupación</p>
                 <p className="text-2xl md:text-3xl font-bold">
-                  {estadisticasGenerales?.tasaOcupacion || 0}%
+                  {Number(estadisticasGenerales?.tasaOcupacion || 0).toFixed(2)}%
                 </p>
               </div>
             </div>
             <div className="text-amber-100 text-xs md:text-sm">
-              {estadisticasGenerales?.habitacionesDisponibles || 0} de {estadisticasGenerales?.totalHabitaciones || 0} disponibles
+              {estadisticasGenerales?.habitacionesOcupadasRango || 0} de {estadisticasGenerales?.totalHabitaciones || 0} ocupadas (en rango)
             </div>
           </div>
         </div>
+
+        {/* KPIs extra */}
+        {estadisticasGenerales && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
+            <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border border-gray-100">
+              <p className="text-sm text-gray-500 mb-1">ADR (Bs./noche)</p>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900">
+                Bs. {Number(estadisticasGenerales.adr || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className="text-xs text-gray-500 mt-2">Promedio por noche (reservas del periodo)</p>
+            </div>
+            <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border border-gray-100">
+              <p className="text-sm text-gray-500 mb-1">RevPAR (Bs.)</p>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900">
+                Bs. {Number(estadisticasGenerales.revpar || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className="text-xs text-gray-500 mt-2">Ingresos por habitación disponible</p>
+            </div>
+            <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border border-gray-100">
+              <p className="text-sm text-gray-500 mb-1">Noches promedio</p>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900">
+                {Number(estadisticasGenerales.nochesPromedio || 0).toFixed(2)}
+              </p>
+              <p className="text-xs text-gray-500 mt-2">Duración promedio de estancia</p>
+            </div>
+          </div>
+        )}
 
         {/* Gráficas principales */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
@@ -457,6 +485,107 @@ const Dashboard = () => {
                 No hay datos para este periodo
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Clientes frecuentes + Próximos movimientos */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 pb-6">
+          <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg lg:col-span-2">
+            <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4">
+              Clientes frecuentes - {getPeriodoLabel()}
+            </h3>
+            {clientesFrecuentes.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-500 border-b">
+                      <th className="py-2 pr-3">Cliente</th>
+                      <th className="py-2 pr-3">Correo</th>
+                      <th className="py-2 pr-3">Reservas</th>
+                      <th className="py-2">Gasto (Bs.)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {clientesFrecuentes.map((c, idx) => (
+                      <tr key={`${c.correo || idx}`} className="border-b last:border-b-0">
+                        <td className="py-2 pr-3 font-semibold text-gray-900">{c.nombre} {c.apellido}</td>
+                        <td className="py-2 pr-3 text-gray-600">{c.correo || '-'}</td>
+                        <td className="py-2 pr-3">{c.total_reservas}</td>
+                        <td className="py-2">
+                          {Number(c.gasto_total || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="h-40 flex items-center justify-center text-gray-500">
+                No hay clientes frecuentes para este periodo
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg">
+            <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4">
+              Próximos 7 días
+            </h3>
+
+            <div className="mb-5">
+              <p className="text-sm font-semibold text-gray-700 mb-2">Entradas</p>
+              {proximasEntradas.length > 0 ? (
+                <ul className="space-y-2">
+                  {proximasEntradas.map((r) => (
+                    <li key={`in-${r.id_reserva}`} className="p-3 rounded-xl bg-gray-50 border border-gray-100">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-900 truncate">{r.cliente}</p>
+                          <p className="text-xs text-gray-600">Hab. {r.habitacion} · {r.estado}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-gray-900">
+                            {new Date(r.fecha_entrada).toLocaleDateString('es-ES')}
+                          </p>
+                          <p className="text-xs text-gray-600">
+                            Bs. {Number(r.total || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-500">Sin entradas programadas</p>
+              )}
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-gray-700 mb-2">Salidas</p>
+              {proximasSalidas.length > 0 ? (
+                <ul className="space-y-2">
+                  {proximasSalidas.map((r) => (
+                    <li key={`out-${r.id_reserva}`} className="p-3 rounded-xl bg-gray-50 border border-gray-100">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-900 truncate">{r.cliente}</p>
+                          <p className="text-xs text-gray-600">Hab. {r.habitacion} · {r.estado}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-gray-900">
+                            {new Date(r.fecha_salida).toLocaleDateString('es-ES')}
+                          </p>
+                          <p className="text-xs text-gray-600">
+                            Bs. {Number(r.total || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-500">Sin salidas programadas</p>
+              )}
+            </div>
           </div>
         </div>
       </div>

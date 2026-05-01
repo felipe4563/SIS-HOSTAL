@@ -85,7 +85,7 @@ const CalendarioReserva = ({
           setSeleccionando('entrada');
           setRangoTemporal(null);
         } else {
-          alert('⚠️ Hay fechas ocupadas en el rango seleccionado. Por favor, elige otras fechas.');
+          alert('⚠️ El rango seleccionado incluye fechas no permitidas (ocupadas o fin de semana). Por favor, elige otras fechas.');
           onFechasChange('', '');
           setSeleccionando('entrada');
           setRangoTemporal(null);

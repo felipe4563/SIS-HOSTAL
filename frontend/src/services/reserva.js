@@ -47,3 +47,17 @@ export const actualizarReserva = async (id, datos) => {
   const response = await api.put(`/reservas/${id}`, datos);
   return response.data;
 };
+
+// ============================
+// CHECK-IN / CHECK-OUT (ADMIN)
+// ============================
+
+export const checkInReserva = async (id) => {
+  const response = await api.post(`/reservas/${id}/checkin`);
+  return response.data;
+};
+
+export const checkOutReserva = async (id) => {
+  const response = await api.post(`/reservas/${id}/checkout`);
+  return response.data;
+};

@@ -1,5 +1,10 @@
 import api from './api';
 
+export const getDashboardOverview = async (periodo = 'mes') => {
+  const { data } = await api.get(`/dashboard/overview?periodo=${periodo}`);
+  return data;
+};
+
 export const getEstadisticasGenerales = async (periodo = 'mes') => {
   const { data } = await api.get(`/dashboard/estadisticas-generales?periodo=${periodo}`);
   return data;
