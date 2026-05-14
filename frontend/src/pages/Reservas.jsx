@@ -13,6 +13,7 @@ import { listarHabitaciones } from "../services/habitacion";
 import { crearCliente } from "../services/cliente";
 import ReservaForm from "./reservas/ReservaForm";
 import ReservasList from "./reservas/ReservasList";
+import toast from 'react-hot-toast';
 
 const Reservas = () => {
   const [reservas, setReservas] = useState([]);
@@ -59,12 +60,12 @@ const Reservas = () => {
 
     try {
       await actualizarEstadoReserva(id, nuevoEstado);
-      alert('Estado actualizado exitosamente');
+      toast.success('Estado actualizado exitosamente');
       cargarDatos();
       setMostrarModalEstado(false);
       setReservaSeleccionada(null);
     } catch (err) {
-      alert(err.response?.data?.message || 'Error al actualizar estado');
+      toast.error(err.response?.data?.message || 'Error al actualizar estado');
     }
   };
 
@@ -75,10 +76,10 @@ const Reservas = () => {
 
     try {
       await eliminarReserva(id);
-      alert('Reserva eliminada exitosamente');
+      toast.success('Reserva eliminada exitosamente');
       cargarDatos();
     } catch (err) {
-      alert(err.response?.data?.message || 'Error al eliminar reserva');
+      toast.error(err.response?.data?.message || 'Error al eliminar reserva');
     }
   };
 
@@ -86,10 +87,10 @@ const Reservas = () => {
     if (!window.confirm(`¿Realizar check-in de la reserva #${reserva.id_reserva}?`)) return;
     try {
       await checkInReserva(reserva.id_reserva);
-      alert("Check-in realizado");
+      toast.success("Check-in realizado");
       await cargarDatos();
     } catch (err) {
-      alert(err.response?.data?.message || "Error al hacer check-in");
+      toast.error(err.response?.data?.message || "Error al hacer check-in");
     }
   };
 
@@ -97,10 +98,10 @@ const Reservas = () => {
     if (!window.confirm(`¿Realizar check-out de la reserva #${reserva.id_reserva}?`)) return;
     try {
       await checkOutReserva(reserva.id_reserva);
-      alert("Check-out realizado");
+      toast.success("Check-out realizado");
       await cargarDatos();
     } catch (err) {
-      alert(err.response?.data?.message || "Error al hacer check-out");
+      toast.error(err.response?.data?.message || "Error al hacer check-out");
     }
   };
 
@@ -126,17 +127,17 @@ const Reservas = () => {
 
       if (reservaEditando) {
         await actualizarReserva(reservaEditando.id_reserva, payloadReserva);
-        alert("Reserva actualizada exitosamente");
+        toast.success("Reserva actualizada exitosamente");
       } else {
         await crearReserva(payloadReserva);
-        alert("Reserva creada exitosamente");
+        toast.success("Reserva creada exitosamente");
       }
 
       setMostrarForm(false);
       setReservaEditando(null);
       await cargarDatos();
     } catch (err) {
-      alert(err.response?.data?.message || "Error al guardar la reserva");
+      toast.error(err.response?.data?.message || "Error al guardar la reserva");
     } finally {
       setLoadingForm(false);
     }

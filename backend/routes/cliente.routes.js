@@ -9,6 +9,8 @@ import {
   actualizarCliente,
   eliminarCliente
 } from '../controllers/cliente.controller.js';
+import { validate } from '../middlewares/validate.middleware.js';
+import { crearClienteSchema, actualizarClienteSchema } from '../schemas/cliente.schema.js';
 
 const router = express.Router();
 
@@ -20,7 +22,7 @@ const router = express.Router();
 router.get('/', authMiddleware, initAbility, checkAbility('read', 'Cliente'), obtenerClientes);
 
 // Crear cliente (admin)
-router.post('/', authMiddleware, initAbility, checkAbility('create', 'Cliente'), crearCliente);
+router.post('/', authMiddleware, initAbility, checkAbility('create', 'Cliente'), validate(crearClienteSchema), crearCliente);
 
 // Obtener cliente por ID (admin)
 router.get('/:id', authMiddleware, initAbility, checkAbility('read', 'Cliente'), obtenerClientePorId);
@@ -35,6 +37,6 @@ router.delete('/:id', authMiddleware, initAbility, checkAbility('delete', 'Clien
 // Actualizar cliente
 // - Si es cliente: solo puede actualizar su propio perfil
 // - Si es admin: puede actualizar cualquier cliente
-router.put('/:id', authMiddleware, actualizarCliente);
+router.put('/:id', authMiddleware, validate(actualizarClienteSchema), actualizarCliente);
 
 export default router;

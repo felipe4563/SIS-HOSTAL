@@ -15,7 +15,6 @@ const MisReservas = () => {
       navigate('/');
       return;
     }
-
     cargarReservas();
   }, [usuario, navigate]);
 
@@ -37,10 +36,8 @@ const MisReservas = () => {
     if (!window.confirm('¿Estás seguro de que deseas cancelar esta reserva?')) {
       return;
     }
-
     try {
       await cancelarReserva(id);
-      alert('Reserva cancelada exitosamente');
       cargarReservas();
     } catch (err) {
       alert(err.response?.data?.message || 'Error al cancelar la reserva');
@@ -49,98 +46,105 @@ const MisReservas = () => {
 
   const getEstadoBadge = (estado) => {
     const badges = {
-      pendiente: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      confirmada: 'bg-green-100 text-green-800 border-green-200',
-      cancelada: 'bg-red-100 text-red-800 border-red-200',
-      finalizada: 'bg-gray-100 text-gray-800 border-gray-200'
+      pendiente: 'bg-amber-100/80 text-amber-800 border-amber-300 shadow-amber-100',
+      confirmada: 'bg-emerald-100/80 text-emerald-800 border-emerald-300 shadow-emerald-100',
+      cancelada: 'bg-rose-100/80 text-rose-800 border-rose-300 shadow-rose-100',
+      finalizada: 'bg-slate-100/80 text-slate-800 border-slate-300 shadow-slate-100'
     };
-    
     const iconos = {
       pendiente: '⏳',
       confirmada: '✅',
       cancelada: '❌',
       finalizada: '🏁'
     };
-
     return (
-      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold border ${badges[estado]}`}>
-        <span className="mr-1">{iconos[estado]}</span>
-        {estado.charAt(0).toUpperCase() + estado.slice(1)}
-      </span>
+      <div className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold border shadow-sm backdrop-blur-sm ${badges[estado]} uppercase tracking-wider`}>
+        <span className="mr-2 text-base">{iconos[estado]}</span>
+        {estado}
+      </div>
     );
   };
 
-  const formatearFecha = (fecha) => {
-    return new Date(fecha).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+  const formatearFechaStr = (fecha) => {
+    const date = new Date(fecha);
+    const options = { weekday: 'short', day: '2-digit', month: 'short' };
+    return date.toLocaleDateString('es-ES', options).replace(',', '');
   };
 
-  const formatearHora = (hora) => {
-    if (!hora) return null;
-    const [horas, minutos] = hora.split(':');
-    return `${horas}:${minutos}`;
+  const construirUrlImagen = (ruta) => {
+    if (!ruta) return 'https://placehold.co/800x600/1e3a8a/ffffff?text=Hostal+Suri';
+    if (ruta.startsWith('http://') || ruta.startsWith('https://')) return ruta;
+    
+    // Solución para redes LAN (dispositivos móviles)
+    let baseUrl = import.meta.env.VITE_BASE_URL || 'http://localhost:3000';
+    if (baseUrl.includes('localhost') && window.location.hostname !== 'localhost') {
+      baseUrl = baseUrl.replace('localhost', window.location.hostname);
+    }
+    
+    if (ruta.startsWith('habitaciones/')) return `${baseUrl}/uploads/${ruta}`;
+    return `${baseUrl}/uploads/habitaciones/${ruta}`;
   };
 
-  const calcularNoches = (entrada, salida) => {
-    const diff = new Date(salida) - new Date(entrada);
-    return Math.ceil(diff / (1000 * 60 * 60 * 24));
-  };
-
-  if (!usuario || usuario.tipo !== 'cliente') {
-    return null;
-  }
+  if (!usuario || usuario.tipo !== 'cliente') return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-amber-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-[#F8FAFC] pb-20">
+      {/* Header Premium */}
+      <div className="relative bg-gradient-to-br from-[#0F172A] via-[#1E3A8A] to-[#2563EB] overflow-hidden">
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 relative z-10">
+          <Link to="/" className="inline-flex items-center text-blue-200 hover:text-white transition-colors mb-6 group">
+            <span className="bg-white/10 p-2 rounded-full mr-3 group-hover:bg-white/20 transition-all">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </span>
+            <span className="font-medium tracking-wide">Volver al inicio</span>
+          </Link>
+          
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div>
-              <Link 
-                to="/" 
-                className="inline-flex items-center text-blue-100 hover:text-white transition-colors mb-4"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Volver al inicio
-              </Link>
-              <h1 className="text-4xl font-extrabold mb-2">Mis Reservas</h1>
-              <p className="text-blue-100">Gestiona todas tus reservas en Hostal Suri</p>
+              <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-3 tracking-tight">Mis Reservas</h1>
+              <p className="text-blue-100 text-lg max-w-2xl font-light">
+                Administra tus estadías y revisa el estado de tus reservas en <span className="font-semibold text-white">Hostal Suri</span>.
+              </p>
             </div>
-            <div className="hidden md:flex items-center space-x-3 bg-white/10 backdrop-blur-sm rounded-xl px-6 py-4">
-              <span className="text-3xl">👤</span>
+            
+            {/* Perfil Mini */}
+            <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md border border-white/10 p-4 rounded-2xl shadow-2xl">
+              <div className="w-14 h-14 bg-gradient-to-tr from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-inner">
+                {usuario.nombre.charAt(0)}{usuario.apellido.charAt(0)}
+              </div>
               <div>
-                <p className="font-semibold">{usuario.nombre} {usuario.apellido}</p>
-                <p className="text-sm text-blue-200">{usuario.correo}</p>
+                <h3 className="text-white font-bold text-lg leading-tight">{usuario.nombre} {usuario.apellido}</h3>
+                <p className="text-blue-200 text-sm">{usuario.correo}</p>
               </div>
             </div>
           </div>
         </div>
+        
+        {/* Wave divisor */}
+        <div className="absolute bottom-0 w-full overflow-hidden leading-[0]">
+          <svg className="relative block w-[calc(100%+1.3px)] h-[40px] sm:h-[60px]" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+            <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C59.71,118.08,130.83,123.15,195.96,114.07,238.94,108.06,281.39,81.42,321.39,56.44Z" className="fill-[#F8FAFC]"></path>
+          </svg>
+        </div>
       </div>
 
-      {/* Contenido */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-20">
         {loading && (
-          <div className="text-center py-20">
-            <div className="inline-flex items-center justify-center w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-600 font-medium">Cargando reservas...</p>
+          <div className="flex flex-col items-center justify-center py-32">
+            <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+            <p className="mt-4 text-slate-500 font-medium">Buscando tus reservas...</p>
           </div>
         )}
 
         {error && (
-          <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-6 text-center">
-            <div className="text-4xl mb-4">⚠️</div>
-            <p className="text-red-700 font-semibold mb-4">{error}</p>
-            <button
-              onClick={cargarReservas}
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold transition-all"
-            >
-              Reintentar
+          <div className="bg-red-50 border border-red-200 rounded-3xl p-8 text-center shadow-sm max-w-2xl mx-auto mt-10">
+            <div className="text-5xl mb-4">⚠️</div>
+            <p className="text-red-700 font-bold text-lg mb-6">{error}</p>
+            <button onClick={cargarReservas} className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-bold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5">
+              Intentar de nuevo
             </button>
           </div>
         )}
@@ -148,202 +152,110 @@ const MisReservas = () => {
         {!loading && !error && (
           <>
             {reservas.length > 0 ? (
-              <div className="grid gap-6">
+              <div className="space-y-8 mt-10">
                 {reservas.map((reserva) => {
-                  const noches = calcularNoches(reserva.fecha_entrada, reserva.fecha_salida);
-                  const precioPorNoche = reserva.total / noches;
-                  const totalHuespedes = (reserva.cantidad_adultos || 0) + (reserva.cantidad_ninos || 0);
-
+                  const esActiva = reserva.estado === 'confirmada' || reserva.estado === 'pendiente';
+                  
                   return (
-                    <div
-                      key={reserva.id_reserva}
-                      className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100"
-                    >
-                      <div className="md:flex">
-                        {/* Imagen de la habitación */}
-                        <div className="md:w-1/3 relative">
-                          <div className="h-64 md:h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                            <div className="text-center text-white">
-                              <span className="text-6xl mb-2 block">🏨</span>
-                              <p className="text-2xl font-bold">Hab. {reserva.numero_habitacion}</p>
-                              <p className="text-blue-100">{reserva.tipo_habitacion}</p>
-                            </div>
-                          </div>
-                          <div className="absolute top-4 right-4">
+                    <div key={reserva.id_reserva} className={`bg-white rounded-[2rem] overflow-hidden transition-all duration-300 border ${esActiva ? 'border-blue-100 shadow-xl hover:shadow-2xl' : 'border-slate-200 shadow-md opacity-90'}`}>
+                      <div className="flex flex-col lg:flex-row">
+                        
+                        {/* 🖼️ Imagen Responsiva */}
+                        <div className="w-full lg:w-2/5 xl:w-1/3 relative h-[250px] sm:h-[320px] lg:h-auto group">
+                          <img 
+                            src={construirUrlImagen(reserva.imagen_portada)} 
+                            alt={`Habitación ${reserva.numero_habitacion}`}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                            onError={(e) => { e.target.src = 'https://placehold.co/800x600/1e3a8a/ffffff?text=Hostal+Suri'; }}
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A]/80 via-transparent to-transparent"></div>
+                          
+                          <div className="absolute top-5 left-5 z-10">
                             {getEstadoBadge(reserva.estado)}
+                          </div>
+                          
+                          <div className="absolute bottom-5 left-5 right-5 text-white z-10 pointer-events-none">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border border-white/30">
+                                {reserva.tipo_habitacion}
+                              </span>
+                            </div>
+                            <h3 className="text-3xl font-bold drop-shadow-md">Hab. {reserva.numero_habitacion}</h3>
+                            <p className="text-white/80 text-sm flex items-center gap-2 mt-1">
+                              <span>👥 Capacidad: {reserva.capacidad_habitacion} pax</span>
+                            </p>
                           </div>
                         </div>
 
-                        {/* Detalles */}
-                        <div className="md:w-2/3 p-6 md:p-8">
-                          <div className="flex justify-between items-start mb-6">
-                            <div>
-                              <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                                {reserva.tipo_habitacion} - Habitación {reserva.numero_habitacion}
-                              </h3>
-                              <p className="text-gray-500 text-sm">
-                                Reserva #{reserva.id_reserva}
-                              </p>
+                        {/* 📄 Contenido y Detalles */}
+                        <div className="w-full lg:w-3/5 xl:w-2/3 p-6 sm:p-8 flex flex-col justify-between bg-white relative z-20">
+                          <div>
+                            <div className="flex justify-between items-start mb-6 border-b border-slate-100 pb-4">
+                              <div>
+                                <p className="text-sm font-bold text-blue-600 uppercase tracking-wider mb-1">Reserva #{reserva.id_reserva}</p>
+                                <p className="text-slate-500 text-sm">Realizada el {new Date(reserva.fecha_creacion || Date.now()).toLocaleDateString()}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-3xl font-extrabold text-[#0F172A]">Bs. {parseFloat(reserva.total).toFixed(2)}</p>
+                                <p className="text-sm text-slate-500 font-medium">Total por {reserva.noches} noches</p>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                                <p className="text-xs text-slate-400 font-bold uppercase mb-1">Check-in</p>
+                                <p className="font-bold text-slate-800">{formatearFechaStr(reserva.fecha_entrada)}</p>
+                                <p className="text-xs text-slate-500 mt-1">14:00 hrs</p>
+                              </div>
+                              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                                <p className="text-xs text-slate-400 font-bold uppercase mb-1">Check-out</p>
+                                <p className="font-bold text-slate-800">{formatearFechaStr(reserva.fecha_salida)}</p>
+                                <p className="text-xs text-slate-500 mt-1">11:00 hrs</p>
+                              </div>
+                              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                                <p className="text-xs text-slate-400 font-bold uppercase mb-1">Huéspedes</p>
+                                <p className="font-bold text-slate-800">{reserva.cantidad_adultos} Ad, {reserva.cantidad_ninos} Ni</p>
+                              </div>
+                              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                                <p className="text-xs text-slate-400 font-bold uppercase mb-1">Llegada Est.</p>
+                                <p className="font-bold text-slate-800">{reserva.hora_llegada ? reserva.hora_llegada.substring(0,5) : 'No def.'}</p>
+                              </div>
                             </div>
                           </div>
 
-                          <div className="grid md:grid-cols-2 gap-6 mb-6">
-                            {/* Fechas */}
-                            <div className="space-y-3">
-                              <div className="flex items-center text-gray-700">
-                                <span className="text-2xl mr-3">📅</span>
-                                <div>
-                                  <p className="text-xs text-gray-500 font-semibold">Check-in</p>
-                                  <p className="font-semibold">{formatearFecha(reserva.fecha_entrada)}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center text-gray-700">
-                                <span className="text-2xl mr-3">📅</span>
-                                <div>
-                                  <p className="text-xs text-gray-500 font-semibold">Check-out</p>
-                                  <p className="font-semibold">{formatearFecha(reserva.fecha_salida)}</p>
-                                </div>
-                              </div>
-                              
-                              {reserva.hora_llegada && (
-                                <div className="flex items-center text-gray-700">
-                                  <span className="text-2xl mr-3">⏰</span>
-                                  <div>
-                                    <p className="text-xs text-gray-500 font-semibold">Hora estimada de llegada</p>
-                                    <p className="font-semibold">{formatearHora(reserva.hora_llegada)}</p>
-                                  </div>
-                                </div>
+                          {/* Action Area */}
+                          <div className="mt-4 pt-6 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            
+                            <div className="w-full sm:w-auto text-sm text-slate-500">
+                              {reserva.estado === 'pendiente' && (
+                                <p className="flex items-center gap-2 text-amber-600 bg-amber-50 px-4 py-2 rounded-xl font-medium">
+                                  <span>💳</span> Esperando pago en recepción
+                                </p>
+                              )}
+                              {reserva.estado === 'confirmada' && (
+                                <p className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-4 py-2 rounded-xl font-medium">
+                                  <span>🎉</span> Todo listo para tu llegada
+                                </p>
+                              )}
+                              {reserva.estado === 'cancelada' && (
+                                <p className="flex items-center gap-2 text-rose-600 bg-rose-50 px-4 py-2 rounded-xl font-medium">
+                                  <span>🚫</span> Esta reserva fue cancelada
+                                </p>
                               )}
                             </div>
 
-                            {/* Detalles de precio */}
-                            <div className="bg-blue-50 rounded-xl p-4">
-                              <div className="space-y-2">
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-gray-600">Noches:</span>
-                                  <span className="font-semibold text-gray-900">{noches}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-gray-600">Precio por noche:</span>
-                                  <span className="font-semibold text-gray-900">Bs. {precioPorNoche.toFixed(2)}</span>
-                                </div>
-                                <div className="border-t border-blue-200 pt-2 flex justify-between">
-                                  <span className="font-bold text-gray-900">Total:</span>
-                                  <span className="font-bold text-blue-600 text-xl">Bs. {reserva.total}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Información de huéspedes */}
-                          {(reserva.cantidad_adultos || reserva.cantidad_ninos) && (
-                            <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 mb-6 border border-purple-200">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center">
-                                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-lg mr-4">
-                                    {totalHuespedes}
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-semibold text-gray-700 mb-1">Huéspedes registrados</p>
-                                    <div className="flex items-center space-x-4 text-sm">
-                                      {reserva.cantidad_adultos > 0 && (
-                                        <div className="flex items-center text-purple-700">
-                                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                          </svg>
-                                          <span className="font-semibold">
-                                            {reserva.cantidad_adultos} {reserva.cantidad_adultos === 1 ? 'Adulto' : 'Adultos'}
-                                          </span>
-                                        </div>
-                                      )}
-                                      {reserva.cantidad_ninos > 0 && (
-                                        <div className="flex items-center text-pink-700">
-                                          <span className="mr-1">👶</span>
-                                          <span className="font-semibold">
-                                            {reserva.cantidad_ninos} {reserva.cantidad_ninos === 1 ? 'Niño' : 'Niños'}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                                
-                                <div className="hidden sm:block">
-                                  <div className="text-right">
-                                    <p className="text-xs text-gray-500 mb-1">Capacidad</p>
-                                    <div className="flex items-center">
-                                      <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
-                                        <div 
-                                          className={`h-2 rounded-full ${
-                                            totalHuespedes <= reserva.capacidad_habitacion 
-                                              ? 'bg-green-500' 
-                                              : 'bg-red-500'
-                                          }`}
-                                          style={{ width: `${Math.min((totalHuespedes / reserva.capacidad_habitacion) * 100, 100)}%` }}
-                                        ></div>
-                                      </div>
-                                      <span className="text-xs font-semibold text-gray-600">
-                                        {totalHuespedes}/{reserva.capacidad_habitacion}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Acciones */}
-                          <div className="flex flex-wrap gap-3">
-                            {/* ESTADO PENDIENTE - Solo muestra info y botón cancelar */}
-                            {reserva.estado === 'pendiente' && (
-                              <>
-                                <div className="flex-1 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 flex items-center">
-                                  <span className="text-2xl mr-3">⏳</span>
-                                  <div>
-                                    <p className="text-sm font-semibold text-yellow-800">Esperando Confirmación de Pago</p>
-                                    <p className="text-xs text-yellow-600">El pago está siendo procesado</p>
-                                  </div>
-                                </div>
-                                
+                            <div className="w-full sm:w-auto flex gap-3">
+                              {(reserva.estado === 'pendiente' || reserva.estado === 'confirmada') && (
                                 <button
                                   onClick={() => handleCancelarReserva(reserva.id_reserva)}
-                                  className="flex-none bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-md hover:shadow-lg"
+                                  className="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-red-600 bg-red-50 hover:bg-red-600 hover:text-white transition-all duration-300 text-sm"
                                 >
                                   Cancelar Reserva
                                 </button>
-                              </>
-                            )}
-                            
-                            {/* ESTADO CONFIRMADA */}
-                            {reserva.estado === 'confirmada' && (
-                              <div className="flex-1 bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center">
-                                <span className="text-2xl mr-3">✅</span>
-                                <div>
-                                  <p className="text-sm font-semibold text-green-800">Reserva Confirmada</p>
-                                  <p className="text-xs text-green-600">¡Te esperamos!</p>
-                                </div>
-                              </div>
-                            )}
-                            
-                            {/* ESTADO CANCELADA */}
-                            {reserva.estado === 'cancelada' && (
-                              <div className="flex-1 bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center">
-                                <span className="text-2xl mr-3">❌</span>
-                                <p className="text-sm font-semibold text-red-800">Esta reserva fue cancelada</p>
-                              </div>
-                            )}
-                            
-                            {/* ESTADO FINALIZADA */}
-                            {reserva.estado === 'finalizada' && (
-                              <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 flex items-center">
-                                <span className="text-2xl mr-3">🏁</span>
-                                <div>
-                                  <p className="text-sm font-semibold text-gray-800">Estadía Finalizada</p>
-                                  <p className="text-xs text-gray-600">¡Gracias por tu visita!</p>
-                                </div>
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </div>
+
                         </div>
                       </div>
                     </div>
@@ -351,21 +263,19 @@ const MisReservas = () => {
                 })}
               </div>
             ) : (
-              <div className="text-center py-20">
-                <div className="text-6xl mb-6">📋</div>
-                <h3 className="text-3xl font-bold text-gray-900 mb-3">
-                  No tienes reservas aún
-                </h3>
-                <p className="text-gray-600 mb-8 text-lg">
-                  ¡Explora nuestras habitaciones y haz tu primera reserva!
-                </p>
-                <Link
-                  to="/"
-                  className="inline-flex items-center bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-4 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-                >
-                  <span className="mr-2">🏨</span>
-                  Ver Habitaciones
-                </Link>
+              <div className="flex flex-col items-center justify-center py-20 px-4">
+                <div className="bg-white p-10 rounded-[3rem] shadow-xl text-center max-w-lg border border-slate-100">
+                  <div className="text-8xl mb-6 select-none">🧳</div>
+                  <h3 className="text-3xl font-extrabold text-[#0F172A] mb-4">Aún no tienes reservas</h3>
+                  <p className="text-slate-500 mb-8 text-lg">Tu próxima gran aventura o viaje de negocios comienza aquí. ¡Descubre nuestras habitaciones!</p>
+                  <Link
+                    to="/"
+                    className="inline-flex items-center justify-center w-full bg-gradient-to-r from-blue-600 to-blue-800 text-white px-8 py-4 rounded-2xl font-bold transition-all shadow-lg hover:shadow-blue-600/30 hover:-translate-y-1 text-lg"
+                  >
+                    <span>Explorar Habitaciones</span>
+                    <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                  </Link>
+                </div>
               </div>
             )}
           </>

@@ -9,6 +9,20 @@ export const crearUsuario = async (req, res) => {
   const { nombre, apellido, ci, correo, password, id_rol, estado = 1 } = req.body;
 
   try {
+    // Validar unicidad de CI y Correo
+    const [existing] = await db.query(
+      `SELECT ci, correo FROM usuario WHERE ci = ? OR correo = ?`,
+      [ci, correo]
+    );
+
+    if (existing.length > 0) {
+      if (existing.some(u => u.ci === ci)) {
+        return res.status(400).json({ message: 'El CI ingresado ya está registrado en el sistema' });
+      }
+      if (existing.some(u => u.correo === correo)) {
+        return res.status(400).json({ message: 'El correo generado ya está registrado, intente agregar una variante' });
+      }
+    }
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const [result] = await db.query(
@@ -61,9 +75,23 @@ export const obtenerUsuario = async (req, res) => {
  */
 export const actualizarUsuario = async (req, res) => {
   const { id } = req.params;
-  const { nombre, apellido, ci, correo, password, id_rol } = req.body; // eliminamos estado
+  const { nombre, apellido, ci, correo, password, id_rol } = req.body;
 
   try {
+    // Validar unicidad de CI y Correo, excluyendo al usuario actual
+    const [existing] = await db.query(
+      `SELECT ci, correo FROM usuario WHERE (ci = ? OR correo = ?) AND id_usuario != ?`,
+      [ci, correo, id]
+    );
+
+    if (existing.length > 0) {
+      if (existing.some(u => u.ci === ci)) {
+        return res.status(400).json({ message: 'El CI ingresado ya está registrado por otro usuario' });
+      }
+      if (existing.some(u => u.correo === correo)) {
+        return res.status(400).json({ message: 'El correo generado ya está registrado por otro usuario' });
+      }
+    }
     let query = 'UPDATE usuario SET nombre = ?, apellido = ?, ci = ?, correo = ?, id_rol = ?';
     const params = [nombre, apellido, ci, correo, id_rol];
 

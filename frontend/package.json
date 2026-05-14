@@ -13,6 +13,7 @@
     "@casl/ability": "^6.8.0",
     "@casl/react": "^5.0.1",
     "@heroicons/react": "^2.2.0",
+    "@hookform/resolvers": "^5.2.2",
     "@photo-sphere-viewer/core": "^5.14.1",
     "@photo-sphere-viewer/gyroscope-plugin": "^5.14.1",
     "@react-oauth/google": "^0.13.4",
@@ -28,11 +29,14 @@
     "react": "^18.3.1",
     "react-calendar": "^6.0.0",
     "react-dom": "^18.3.1",
+    "react-hook-form": "^7.75.0",
+    "react-hot-toast": "^2.6.0",
     "react-is": "^18.3.1",
     "react-photo-sphere-viewer": "^6.2.3",
     "react-router-dom": "^7.9.5",
     "recharts": "^3.7.0",
-    "tailwindcss": "^4.1.17"
+    "tailwindcss": "^4.1.17",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

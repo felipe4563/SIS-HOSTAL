@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "./context/AuthContext";
+import { Toaster } from "react-hot-toast";
 
 // 🏠 PÁGINAS PÚBLICAS
 import Home from "./pages/home";
@@ -34,8 +35,10 @@ function App() {
   const esUsuarioSistema = usuario && !esCliente;
 
   return (
-    <Routes>
-      {/* 🏠 PÁGINA PRINCIPAL PÚBLICA */}
+    <>
+      <Toaster position="top-right" />
+      <Routes>
+        {/* 🏠 PÁGINA PRINCIPAL PÚBLICA */}
       <Route path="/" element={<Home />} />
       <Route path="/tour-360" element={<TourVirtual360 />} />
 
@@ -179,6 +182,7 @@ function App() {
         }
       />
     </Routes>
+    </>
   );
 }
 

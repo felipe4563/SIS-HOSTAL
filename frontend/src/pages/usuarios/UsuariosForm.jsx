@@ -1,23 +1,58 @@
 import { useEffect, useState, useContext } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { registrarUsuario, actualizarUsuario } from "../../services/usuario";
 import { getRoles } from "../../services/rol";
 import { AuthContext } from "../../context/AuthContext.jsx";
+import toast from "react-hot-toast";
+
+// Esquema de validación para frontend (similar al backend)
+const usuarioSchema = z.object({
+  nombre: z.string().min(1, "El nombre es obligatorio").regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, "Solo letras y espacios"),
+  apellido: z.string().min(1, "El apellido es obligatorio").regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, "Solo letras y espacios"),
+  ci: z.string().regex(/^\d{7,8}$/, "Debe tener 7 u 8 dígitos numéricos"),
+  correo: z.string().email("Correo inválido").endsWith("@hostalsuri.com", "Debe ser @hostalsuri.com"),
+  password: z.string().optional(),
+  id_rol: z.union([z.string(), z.number()]).refine(val => !!val, "El rol es obligatorio"),
+}).superRefine((data, ctx) => {
+  if (!data.id_usuario && (!data.password || data.password.length < 6)) {
+    // Si es nuevo usuario, password es obligatorio y min 6
+    if (!data.password) {
+      ctx.addIssue({ path: ["password"], code: z.ZodIssueCode.custom, message: "La contraseña es obligatoria" });
+    } else if (data.password.length < 6) {
+      ctx.addIssue({ path: ["password"], code: z.ZodIssueCode.custom, message: "Mínimo 6 caracteres" });
+    }
+  } else if (data.id_usuario && data.password && data.password.length < 6) {
+    // Si es edición y escribió password, min 6
+    ctx.addIssue({ path: ["password"], code: z.ZodIssueCode.custom, message: "Mínimo 6 caracteres" });
+  }
+});
 
 const UsuarioForm = ({ usuarioEdit, onSaved, onCancel }) => {
   const { usuario } = useContext(AuthContext);
-  const [formData, setFormData] = useState({
-    nombre: "",
-    apellido: "",
-    ci: "",
-    correo: "",
-    password: "",
-    id_rol: "",
-  });
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const tienePermiso = (permiso) => usuario?.permisos?.includes(permiso);
+
+  const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm({
+    resolver: zodResolver(usuarioSchema),
+    defaultValues: {
+      nombre: "",
+      apellido: "",
+      ci: "",
+      correo: "",
+      password: "",
+      id_rol: "",
+    }
+  });
+
+  const watchNombre = watch("nombre", "");
+  const watchApellido = watch("apellido", "");
+  const watchPassword = watch("password", "");
+  const watchIdRol = watch("id_rol", "");
 
   useEffect(() => {
     const fetchRoles = async () => {
@@ -25,7 +60,7 @@ const UsuarioForm = ({ usuarioEdit, onSaved, onCancel }) => {
         const data = await getRoles();
         setRoles(data);
       } catch (err) {
-        console.error("Error al obtener roles:", err);
+        toast.error("Error al cargar roles");
       }
     };
     fetchRoles();
@@ -33,7 +68,8 @@ const UsuarioForm = ({ usuarioEdit, onSaved, onCancel }) => {
 
   useEffect(() => {
     if (usuarioEdit) {
-      setFormData({
+      reset({
+        id_usuario: usuarioEdit.id_usuario,
         nombre: usuarioEdit.nombre || "",
         apellido: usuarioEdit.apellido || "",
         ci: usuarioEdit.ci || "",
@@ -42,7 +78,8 @@ const UsuarioForm = ({ usuarioEdit, onSaved, onCancel }) => {
         id_rol: usuarioEdit.id_rol || "",
       });
     } else {
-      setFormData({
+      reset({
+        id_usuario: null,
         nombre: "",
         apellido: "",
         ci: "",
@@ -51,40 +88,56 @@ const UsuarioForm = ({ usuarioEdit, onSaved, onCancel }) => {
         id_rol: "",
       });
     }
-  }, [usuarioEdit]);
+  }, [usuarioEdit, reset]);
 
-  const handleChange = (e) =>
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  // Generación automática de correo
+  useEffect(() => {
+    if (!usuarioEdit || watchNombre !== (usuarioEdit.nombre || "") || watchApellido !== (usuarioEdit.apellido || "")) {
+      if (watchNombre || watchApellido) {
+        const inicial = watchNombre.trim().charAt(0).toLowerCase();
+        const apellidoStr = watchApellido.trim().split(' ')[0].toLowerCase();
+        const cleanStr = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+        const email = `${cleanStr(inicial)}${cleanStr(apellidoStr)}@hostalsuri.com`;
+        setValue("correo", email, { shouldValidate: true });
+      }
+    }
+  }, [watchNombre, watchApellido, usuarioEdit, setValue]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const evaluatePassword = (password) => {
+    const pwd = password || "";
+    const checks = {
+      length: pwd.length >= 8,
+      uppercase: /[A-Z]/.test(pwd),
+      lowercase: /[a-z]/.test(pwd),
+      number: /[0-9]/.test(pwd),
+      special: /[^A-Za-z0-9]/.test(pwd),
+    };
+    const strength = Object.values(checks).filter(Boolean).length;
+    return { checks, strength };
+  };
 
+  const onSubmit = async (data) => {
     if (usuarioEdit && !tienePermiso("usuario.editar")) {
-      return alert("No tienes permiso para actualizar usuarios");
+      return toast.error("No tienes permiso para actualizar usuarios");
     }
     if (!usuarioEdit && !tienePermiso("usuario.crear")) {
-      return alert("No tienes permiso para registrar usuarios");
+      return toast.error("No tienes permiso para registrar usuarios");
     }
 
     setLoading(true);
     try {
       if (usuarioEdit) {
-        await actualizarUsuario(usuarioEdit.id_usuario, formData);
+        await actualizarUsuario(usuarioEdit.id_usuario, data);
+        toast.success("Usuario actualizado correctamente");
       } else {
-        await registrarUsuario(formData);
+        await registrarUsuario(data);
+        toast.success("Usuario registrado exitosamente");
       }
       onSaved();
-      setFormData({
-        nombre: "",
-        apellido: "",
-        ci: "",
-        correo: "",
-        password: "",
-        id_rol: "",
-      });
+      reset();
     } catch (err) {
       console.error("Error al guardar usuario:", err);
-      alert(err?.response?.data?.message || "Error al guardar usuario");
+      toast.error(err?.response?.data?.message || "Error al guardar usuario");
     } finally {
       setLoading(false);
     }
@@ -111,7 +164,7 @@ const UsuarioForm = ({ usuarioEdit, onSaved, onCancel }) => {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-6 space-y-5">
+      <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5">
         {/* Nombre y Apellido */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -122,14 +175,12 @@ const UsuarioForm = ({ usuarioEdit, onSaved, onCancel }) => {
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">👤</span>
               <input
                 type="text"
-                name="nombre"
                 placeholder="Nombre del usuario"
-                value={formData.nombre}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-                required
+                {...register("nombre")}
+                className={`w-full border ${errors.nombre ? 'border-red-500' : 'border-gray-300'} rounded-lg pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition`}
               />
             </div>
+            {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre.message}</p>}
           </div>
 
           <div>
@@ -138,13 +189,11 @@ const UsuarioForm = ({ usuarioEdit, onSaved, onCancel }) => {
             </label>
             <input
               type="text"
-              name="apellido"
               placeholder="Apellido del usuario"
-              value={formData.apellido}
-              onChange={handleChange}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-              required
+              {...register("apellido")}
+              className={`w-full border ${errors.apellido ? 'border-red-500' : 'border-gray-300'} rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition`}
             />
+            {errors.apellido && <p className="text-red-500 text-xs mt-1">{errors.apellido.message}</p>}
           </div>
         </div>
 
@@ -158,14 +207,12 @@ const UsuarioForm = ({ usuarioEdit, onSaved, onCancel }) => {
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🪪</span>
               <input
                 type="text"
-                name="ci"
                 placeholder="Ej: 12345678"
-                value={formData.ci}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-                required
+                {...register("ci")}
+                className={`w-full border ${errors.ci ? 'border-red-500' : 'border-gray-300'} rounded-lg pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition`}
               />
             </div>
+            {errors.ci && <p className="text-red-500 text-xs mt-1">{errors.ci.message}</p>}
           </div>
 
           <div>
@@ -176,14 +223,13 @@ const UsuarioForm = ({ usuarioEdit, onSaved, onCancel }) => {
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">📧</span>
               <input
                 type="email"
-                name="correo"
                 placeholder="correo@ejemplo.com"
-                value={formData.correo}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-                required
+                {...register("correo")}
+                className={`w-full border ${errors.correo ? 'border-red-500' : 'border-gray-300'} rounded-lg pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition bg-gray-50`}
+                readOnly
               />
             </div>
+            {errors.correo && <p className="text-red-500 text-xs mt-1">{errors.correo.message}</p>}
           </div>
         </div>
 
@@ -197,12 +243,9 @@ const UsuarioForm = ({ usuarioEdit, onSaved, onCancel }) => {
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔒</span>
               <input
                 type={showPassword ? "text" : "password"}
-                name="password"
                 placeholder={usuarioEdit ? "Nueva contraseña (opcional)" : "Contraseña"}
-                value={formData.password}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg pl-10 pr-12 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-                required={!usuarioEdit}
+                {...register("password")}
+                className={`w-full border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg pl-10 pr-12 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition`}
               />
               <button
                 type="button"
@@ -212,7 +255,42 @@ const UsuarioForm = ({ usuarioEdit, onSaved, onCancel }) => {
                 {showPassword ? "🙈" : "👁️"}
               </button>
             </div>
-            {usuarioEdit && (
+            {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
+            
+            {/* Visualizador de fuerza de contraseña */}
+            {(!usuarioEdit || watchPassword) && (
+              <div className="mt-2 text-xs">
+                {(() => {
+                  const { checks, strength } = evaluatePassword(watchPassword);
+                  const colors = ["bg-red-500", "bg-red-400", "bg-yellow-500", "bg-blue-500", "bg-green-500"];
+                  const strengthLabels = ["Muy débil", "Débil", "Regular", "Buena", "Fuerte"];
+                  const width = (strength / 5) * 100;
+                  
+                  return (
+                    <div className="space-y-1 bg-gray-50 p-2 rounded-lg border border-gray-100 mt-2">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-gray-600 font-medium">Seguridad: {strength > 0 ? strengthLabels[strength - 1] : "Ninguna"}</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden mb-2">
+                        <div 
+                          className={`h-full transition-all duration-300 ${strength > 0 ? colors[strength - 1] : "bg-transparent"}`}
+                          style={{ width: `${width}%` }}
+                        ></div>
+                      </div>
+                      <ul className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-1 text-[10px] text-gray-500">
+                        <li className={checks.length ? "text-green-600 flex items-center gap-1" : "flex items-center gap-1"}> {checks.length ? "✅" : "❌"} Mínimo 8 caracteres</li>
+                        <li className={checks.uppercase ? "text-green-600 flex items-center gap-1" : "flex items-center gap-1"}> {checks.uppercase ? "✅" : "❌"} Una mayúscula</li>
+                        <li className={checks.lowercase ? "text-green-600 flex items-center gap-1" : "flex items-center gap-1"}> {checks.lowercase ? "✅" : "❌"} Una minúscula</li>
+                        <li className={checks.number ? "text-green-600 flex items-center gap-1" : "flex items-center gap-1"}> {checks.number ? "✅" : "❌"} Un número</li>
+                        <li className={checks.special ? "text-green-600 flex items-center gap-1" : "flex items-center gap-1"}> {checks.special ? "✅" : "❌"} Carácter especial</li>
+                      </ul>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {usuarioEdit && !errors.password && !watchPassword && (
               <p className="text-xs text-gray-400 mt-1">
                 Dejar vacío para mantener la contraseña actual
               </p>
@@ -226,11 +304,8 @@ const UsuarioForm = ({ usuarioEdit, onSaved, onCancel }) => {
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🛡️</span>
               <select
-                name="id_rol"
-                value={formData.id_rol}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition appearance-none bg-white"
-                required
+                {...register("id_rol")}
+                className={`w-full border ${errors.id_rol ? 'border-red-500' : 'border-gray-300'} rounded-lg pl-10 pr-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition appearance-none bg-white`}
               >
                 <option value="">Seleccione un Rol</option>
                 {roles.map((rol) => (
@@ -243,16 +318,17 @@ const UsuarioForm = ({ usuarioEdit, onSaved, onCancel }) => {
                 ▼
               </span>
             </div>
+            {errors.id_rol && <p className="text-red-500 text-xs mt-1">{errors.id_rol.message}</p>}
           </div>
         </div>
 
         {/* Info del rol seleccionado */}
-        {formData.id_rol && (
+        {watchIdRol && (
           <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
             <div className="flex items-center gap-2">
               <span className="text-indigo-600">ℹ️</span>
               <span className="text-sm text-indigo-700">
-                Rol seleccionado: <strong>{roles.find(r => r.id_rol == formData.id_rol)?.nombre_rol}</strong>
+                Rol seleccionado: <strong>{roles.find(r => r.id_rol == watchIdRol)?.nombre_rol}</strong>
               </span>
             </div>
           </div>

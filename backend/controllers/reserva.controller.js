@@ -15,20 +15,6 @@ export const crearReserva = async (req, res) => {
     hora_llegada
   } = req.body;
 
-  // Validar campos obligatorios
-  if (!id_cliente || !id_habitacion || !fecha_entrada || !fecha_salida) {
-    return res.status(400).json({ 
-      message: 'Todos los campos son obligatorios' 
-    });
-  }
-
-  // Validar cantidad de personas
-  if (!cantidad_adultos || cantidad_adultos < 1) {
-    return res.status(400).json({ 
-      message: 'Debe haber al menos 1 adulto en la reserva' 
-    });
-  }
-
   try {
     // Verificar que la habitación existe
     const [habitacion] = await db.query(
@@ -137,25 +123,6 @@ export const crearReservaMultiple = async (req, res) => {
     cantidad_ninos,
     hora_llegada
   } = req.body;
-
-  // Validar campos obligatorios
-  if (!id_cliente || !habitaciones || !Array.isArray(habitaciones) || habitaciones.length === 0) {
-    return res.status(400).json({ 
-      message: 'Cliente y habitaciones son obligatorios' 
-    });
-  }
-
-  if (!fecha_entrada || !fecha_salida) {
-    return res.status(400).json({ 
-      message: 'Las fechas de entrada y salida son obligatorias' 
-    });
-  }
-
-  if (!cantidad_adultos || cantidad_adultos < 1) {
-    return res.status(400).json({ 
-      message: 'Debe haber al menos 1 adulto en la reserva' 
-    });
-  }
 
   const connection = await db.getConnection();
   
@@ -316,7 +283,8 @@ export const obtenerMisReservas = async (req, res) => {
         h.numero as numero_habitacion,
         t.nombre as tipo_habitacion,
         t.capacidad as capacidad_habitacion,
-        DATEDIFF(r.fecha_salida, r.fecha_entrada) as noches
+        DATEDIFF(r.fecha_salida, r.fecha_entrada) as noches,
+        (SELECT ruta FROM habitacion_imagen hi WHERE hi.id_habitacion = h.id_habitacion AND hi.tipo_imagen = 'normal' ORDER BY hi.es_portada DESC LIMIT 1) as imagen_portada
        FROM reserva r
        INNER JOIN habitacion h ON r.id_habitacion = h.id_habitacion
        INNER JOIN tipo t ON h.id_tipo = t.id_tipo
@@ -626,10 +594,6 @@ export const actualizarReserva = async (req, res) => {
     cantidad_ninos = 0,
     hora_llegada = null
   } = req.body;
-
-  if (!id_cliente || !id_habitacion || !fecha_entrada || !fecha_salida) {
-    return res.status(400).json({ message: 'Todos los campos obligatorios deben enviarse' });
-  }
 
   try {
     const [reservaRows] = await db.query(

@@ -4,14 +4,6 @@ import db from '../config/db.js';
 export const crearCliente = async (req, res) => {
   const { nombre, apellido, ci, correo, celular, direccion, estado = 1 } = req.body;
 
-  if (!nombre || !apellido) {
-    return res.status(400).json({ message: 'Nombre y apellido son obligatorios' });
-  }
-
-  if (!ci && !correo) {
-    return res.status(400).json({ message: 'Debes registrar al menos CI o correo' });
-  }
-
   try {
     if (ci) {
       const [ciExistente] = await db.query('SELECT id_cliente FROM cliente WHERE ci = ?', [ci]);

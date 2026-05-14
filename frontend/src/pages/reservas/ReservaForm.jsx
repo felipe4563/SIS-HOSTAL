@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import CalendarioReserva from "../Home/CalendarioReserva.jsx";
+import toast from 'react-hot-toast';
 
 const todayYmd = () => new Date().toISOString().split("T")[0];
 
@@ -126,22 +127,22 @@ const ReservaForm = ({
     if (formData.registrarNuevoCliente) {
       const { nombre, apellido, ci, correo } = formData.nuevoCliente;
       if (!nombre || !apellido) {
-        alert("Para registrar cliente nuevo, nombre y apellido son obligatorios.");
+        toast.error("Para registrar cliente nuevo, nombre y apellido son obligatorios.");
         return;
       }
       if (!ci && !correo) {
-        alert("Para registrar cliente nuevo, registra al menos CI o correo.");
+        toast.error("Para registrar cliente nuevo, registra al menos CI o correo.");
         return;
       }
     }
 
     if (!formData.id_habitacion) {
-      alert("Selecciona una habitación para continuar.");
+      toast.error("Selecciona una habitación para continuar.");
       return;
     }
 
     if (excedeCapacidad) {
-      alert(`La habitación seleccionada admite ${capacidad} personas como máximo.`);
+      toast.error(`La habitación seleccionada admite ${capacidad} personas como máximo.`);
       return;
     }
 

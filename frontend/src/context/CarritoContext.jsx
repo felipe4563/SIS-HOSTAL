@@ -1,9 +1,24 @@
-import { createContext, useState, useContext } from 'react';
+import { createContext, useState, useEffect, useContext } from 'react';
 
 const CarritoContext = createContext();
 
 export const CarritoProvider = ({ children }) => {
-  const [habitaciones, setHabitaciones] = useState([]);
+  const [habitaciones, setHabitaciones] = useState(() => {
+    const saved = localStorage.getItem('carrito');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  });
+
+  // Guardar en localStorage cada vez que cambie el carrito
+  useEffect(() => {
+    localStorage.setItem('carrito', JSON.stringify(habitaciones));
+  }, [habitaciones]);
 
   const agregarHabitacion = (habitacion) => {
     // Evitar duplicados

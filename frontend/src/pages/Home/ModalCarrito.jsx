@@ -88,6 +88,14 @@ const ModalCarrito = ({ onClose }) => {
       return;
     }
 
+    // Validación estricta del perfil
+    if (!usuario.ci || !usuario.celular || !usuario.direccion) {
+      alert('⚠️ Para completar tu reserva es OBLIGATORIO que llenes tus datos personales (Cédula de Identidad, Celular y Dirección). Serás redirigido a tu perfil.');
+      navigate('/mi-perfil', { state: { completarPerfil: true } });
+      onClose();
+      return;
+    }
+
     setLoading(true);
     setError('');
 

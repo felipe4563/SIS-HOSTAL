@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { obtenerClientes, actualizarCliente, eliminarCliente } from '../services/cliente';
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   UsersIcon, 
@@ -80,12 +81,12 @@ const Clientes = () => {
     
     try {
       await actualizarCliente(clienteSeleccionado.id_cliente, formData);
-      alert('Cliente actualizado exitosamente');
+      toast.success('Cliente actualizado exitosamente');
       cargarClientes();
       setMostrarModalEditar(false);
       setClienteSeleccionado(null);
     } catch (err) {
-      alert(err.response?.data?.message || 'Error al actualizar cliente');
+      toast.error(err.response?.data?.message || 'Error al actualizar cliente');
     }
   };
 
@@ -96,10 +97,10 @@ const Clientes = () => {
 
     try {
       await eliminarCliente(id);
-      alert('Cliente eliminado exitosamente');
+      toast.success('Cliente eliminado exitosamente');
       cargarClientes();
     } catch (err) {
-      alert(err.response?.data?.message || 'Error al eliminar cliente');
+      toast.error(err.response?.data?.message || 'Error al eliminar cliente');
     }
   };
 
@@ -113,10 +114,10 @@ const Clientes = () => {
 
     try {
       await actualizarCliente(cliente.id_cliente, { ...cliente, estado: nuevoEstado });
-      alert(`Cliente ${accion === 'activar' ? 'activado' : 'desactivado'} exitosamente`);
+      toast.success(`Cliente ${accion === 'activar' ? 'activado' : 'desactivado'} exitosamente`);
       cargarClientes();
     } catch (err) {
-      alert(err.response?.data?.message || `Error al ${accion} cliente`);
+      toast.error(err.response?.data?.message || `Error al ${accion} cliente`);
     }
   };
 

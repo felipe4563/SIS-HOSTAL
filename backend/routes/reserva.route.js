@@ -14,13 +14,15 @@ import {
   checkInReserva,
   checkOutReserva
 } from '../controllers/reserva.controller.js';
+import { validate } from '../middlewares/validate.middleware.js';
+import { crearReservaSchema, crearReservaMultipleSchema, actualizarReservaSchema } from '../schemas/reserva.schema.js';
 
 const router = express.Router();
 
 // Crear reserva (requiere autenticación)
-router.post('/', authMiddleware, crearReserva);
+router.post('/', authMiddleware, validate(crearReservaSchema), crearReserva);
 
-router.post('/multiple', authMiddleware, crearReservaMultiple);
+router.post('/multiple', authMiddleware, validate(crearReservaMultipleSchema), crearReservaMultiple);
 
 // Obtener mis reservas
 router.get('/mis-reservas', authMiddleware, obtenerMisReservas);
@@ -36,7 +38,7 @@ router.get('/', authMiddleware, initAbility, checkAbility('read', 'Reserva'), ob
 router.patch('/:id/estado', authMiddleware, initAbility, checkAbility('update', 'Reserva'), actualizarEstadoReserva);
 
 // Actualizar datos de reserva (admin)
-router.put('/:id', authMiddleware, initAbility, checkAbility('update', 'Reserva'), actualizarReserva);
+router.put('/:id', authMiddleware, initAbility, checkAbility('update', 'Reserva'), validate(actualizarReservaSchema), actualizarReserva);
 
 // Check-in / Check-out (admin)
 router.post('/:id/checkin', authMiddleware, initAbility, checkAbility('update', 'Reserva'), checkInReserva);

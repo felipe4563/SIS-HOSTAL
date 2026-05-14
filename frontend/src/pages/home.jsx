@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { getHabitaciones } from '../services/habitacion';
 import HabitacionCard from '../pages/Home/HabitacionCard';
@@ -11,6 +11,7 @@ import BotonCarrito from '../pages/Home/BotonCarrito';
 function Home() {
   const { usuario, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
   const [habitaciones, setHabitaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -27,7 +28,14 @@ function Home() {
 
   useEffect(() => {
     cargarHabitaciones();
-  }, []);
+    
+    // Si venimos de completar el perfil o login, reabrimos el carrito
+    if (location.state?.reabrirCarrito || location.state?.completarReserva) {
+      setMostrarModalCarrito(true);
+      // Limpiamos el state para que no se reabra al recargar
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   const cargarHabitaciones = async (filtrosAplicados = {}) => {
     setLoading(true);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext.jsx';
 import api from '../../services/api.js';
 
@@ -16,6 +16,8 @@ const MiPerfil = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const location = useLocation();
+  const requierePerfilCompletado = location.state?.completarPerfil;
 
   useEffect(() => {
     // Verificar que sea un cliente
@@ -63,7 +65,10 @@ const MiPerfil = () => {
       
       setTimeout(() => {
         setSuccess('');
-      }, 3000);
+        if (requierePerfilCompletado) {
+          navigate('/', { state: { reabrirCarrito: true } });
+        }
+      }, 2000);
     } catch (err) {
       setError(err.response?.data?.message || 'Error al actualizar el perfil');
     } finally {
@@ -137,6 +142,13 @@ const MiPerfil = () => {
               </div>
             )}
 
+            {requierePerfilCompletado && !success && (
+              <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center">
+                <span className="text-2xl mr-3">❗</span>
+                <p className="text-amber-800 font-medium">Por favor, completa tus datos personales para poder continuar con la reserva.</p>
+              </div>
+            )}
+
             <div className="space-y-6">
               {/* Nombre y Apellido */}
               <div className="grid md:grid-cols-2 gap-6">
@@ -174,13 +186,14 @@ const MiPerfil = () => {
               {/* CI */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Cédula de Identidad
+                  Cédula de Identidad *
                 </label>
                 <input
                   type="text"
                   name="ci"
                   value={formData.ci}
                   onChange={handleChange}
+                  required
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   placeholder="Ej: 12345678"
                 />
@@ -192,13 +205,14 @@ const MiPerfil = () => {
               {/* Celular */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Celular
+                  Celular *
                 </label>
                 <input
                   type="tel"
                   name="celular"
                   value={formData.celular}
                   onChange={handleChange}
+                  required
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   placeholder="Ej: +591 70123456"
                 />
@@ -207,12 +221,13 @@ const MiPerfil = () => {
               {/* Dirección */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Dirección
+                  Dirección *
                 </label>
                 <textarea
                   name="direccion"
                   value={formData.direccion}
                   onChange={handleChange}
+                  required
                   rows="3"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   placeholder="Ej: Av. Heroínas #123, Cochabamba"
