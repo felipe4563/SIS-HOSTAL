@@ -2,48 +2,60 @@ import { useState, useEffect } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 
-const CalendarioReserva = ({ 
-  idHabitacion, 
-  fechaEntrada, 
-  fechaSalida, 
-  onFechasChange 
+// idHabitacion  → modo individual (ModalReserva)
+// idHabitaciones → modo múltiple (ModalCarrito); unión de todas las fechas ocupadas
+const CalendarioReserva = ({
+  idHabitacion,
+  idHabitaciones,
+  fechaEntrada,
+  fechaSalida,
+  onFechasChange
 }) => {
   const [fechasOcupadas, setFechasOcupadas] = useState([]);
   const [seleccionando, setSeleccionando] = useState('entrada');
   const [rangoTemporal, setRangoTemporal] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const esMultiple = Array.isArray(idHabitaciones) && idHabitaciones.length > 0;
+  const BASE_URL = import.meta.env.VITE_BASE_URL;
+
+  // Re-carga cuando cambia la habitación individual O la lista de habitaciones
   useEffect(() => {
     cargarFechasOcupadas();
-  }, [idHabitacion]);
+  }, [idHabitacion, JSON.stringify(idHabitaciones)]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cargarFechasOcupadas = async () => {
     try {
       setLoading(true);
+
       const hoy = new Date();
       const dentroDe6Meses = new Date();
       dentroDe6Meses.setMonth(dentroDe6Meses.getMonth() + 6);
+      const desde = hoy.toISOString().split('T')[0];
+      const hasta = dentroDe6Meses.toISOString().split('T')[0];
 
-      const response = await fetch(
-        `${import.meta.env.VITE_BASE_URL}/api/habitaciones/${idHabitacion}/fechas-ocupadas?` +
-        `fecha_inicio=${hoy.toISOString().split('T')[0]}&` +
-        `fecha_fin=${dentroDe6Meses.toISOString().split('T')[0]}`
+      // IDs a consultar (uno o varios)
+      const ids = esMultiple ? idHabitaciones : [idHabitacion];
+
+      const fetches = ids.map((id) =>
+        fetch(`${BASE_URL}/api/habitaciones/${id}/fechas-ocupadas?fecha_inicio=${desde}&fecha_fin=${hasta}`)
+          .then((r) => r.json())
+          .catch(() => [])
       );
-      
-      const data = await response.json();
-      
-      // Convertir a array de fechas
-      const fechas = [];
-      data.forEach(reserva => {
+
+      const allData = await Promise.all(fetches);
+
+      // Unión de todas las fechas ocupadas (Set evita duplicados)
+      const setFechas = new Set();
+      allData.flat().forEach((reserva) => {
         const inicio = new Date(reserva.fecha_entrada);
         const fin = new Date(reserva.fecha_salida);
-        
         for (let d = new Date(inicio); d <= fin; d.setDate(d.getDate() + 1)) {
-          fechas.push(new Date(d).toISOString().split('T')[0]);
+          setFechas.add(new Date(d).toISOString().split('T')[0]);
         }
       });
-      
-      setFechasOcupadas(fechas);
+
+      setFechasOcupadas([...setFechas]);
     } catch (error) {
       console.error('Error cargando fechas ocupadas:', error);
     } finally {
@@ -205,10 +217,13 @@ const CalendarioReserva = ({
           </svg>
           <div>
             <p className="font-semibold text-blue-900 mb-1">
-              {seleccionando === 'entrada' ? '📅 Paso 1: Selecciona la fecha de entrada' : '📅 Paso 2: Selecciona la fecha de salida'}
+              {seleccionando === 'entrada' ? 'Paso 1: Selecciona la fecha de entrada' : 'Paso 2: Selecciona la fecha de salida'}
             </p>
             <p className="text-sm text-blue-700">
-              Los días en <span className="font-bold text-red-600">rojo</span> ya están reservados
+              Los días en <span className="font-bold text-red-600">rojo</span>{' '}
+              {esMultiple
+                ? 'están bloqueados por al menos una habitación del carrito'
+                : 'ya están reservados'}
             </p>
           </div>
         </div>

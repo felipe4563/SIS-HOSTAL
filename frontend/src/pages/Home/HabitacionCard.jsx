@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useCarrito } from '../../context/CarritoContext';
+import TourVirtual360 from './TourVirtual360';
 
 const HabitacionCard = ({ habitacion, onReservar }) => {
   const [imagenActual, setImagenActual] = useState(0);
   const [mostrandoMensaje, setMostrandoMensaje] = useState(false);
-  const navigate = useNavigate();
+  const [mostrarTour, setMostrarTour] = useState(false);
 
   const { agregarHabitacion, habitaciones } = useCarrito();
 
@@ -55,17 +55,18 @@ const HabitacionCard = ({ habitacion, onReservar }) => {
     setImagenActual((prev) => (prev - 1 + imagenes.length) % imagenes.length);
   };
 
-  const handleAbrirTour = () => {
-    navigate('/tour-360', {
-      state: {
-        imagenes360,
-        nombreHabitacion: `Habitación ${habitacion.numero}`,
-      },
-    });
-  };
+  const handleAbrirTour = () => setMostrarTour(true);
 
   return (
     <>
+      {mostrarTour && (
+        <TourVirtual360
+          imagenes360={imagenes360}
+          nombreHabitacion={`Habitación ${habitacion.numero}`}
+          onClose={() => setMostrarTour(false)}
+        />
+      )}
+
       <div className="bg-white rounded-3xl border border-slate-100 shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
         <div className="relative h-56 sm:h-64 bg-gray-200 group">
           <img

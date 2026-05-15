@@ -1,14 +1,78 @@
 import { useState, useEffect } from 'react';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart
 } from 'recharts';
 import {
   getDashboardOverview
 } from '../services/dashboard.js';
 
+const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
+
+const CustomTooltip = ({ active, payload, label, prefix = '', suffix = '' }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-xl text-sm">
+      <p className="font-semibold text-slate-700 mb-1">{label}</p>
+      {payload.map((p, i) => (
+        <p key={i} style={{ color: p.color }} className="font-medium">
+          {p.name}: {prefix}{typeof p.value === 'number' ? p.value.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : p.value}{suffix}
+        </p>
+      ))}
+    </div>
+  );
+};
+
+const StatCard = ({ icon, label, value, sub, gradient }) => (
+  <div className={`relative overflow-hidden rounded-2xl p-5 text-white shadow-lg ${gradient}`}>
+    <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10" />
+    <div className="absolute -bottom-6 -right-6 h-32 w-32 rounded-full bg-white/5" />
+    <div className="relative">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 text-2xl shadow-inner">
+          {icon}
+        </span>
+        <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-semibold">{sub}</span>
+      </div>
+      <p className="text-3xl font-black tracking-tight">{value}</p>
+      <p className="mt-1 text-sm font-medium text-white/80">{label}</p>
+    </div>
+  </div>
+);
+
+const KpiCard = ({ label, value, description, icon }) => (
+  <div className="flex items-start gap-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-2xl">
+      {icon}
+    </div>
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">{label}</p>
+      <p className="mt-0.5 text-2xl font-black text-slate-900">{value}</p>
+      <p className="mt-1 text-xs text-slate-500">{description}</p>
+    </div>
+  </div>
+);
+
+const SectionCard = ({ title, children, className = '' }) => (
+  <div className={`rounded-2xl border border-slate-100 bg-white shadow-sm ${className}`}>
+    <div className="border-b border-slate-100 px-5 py-4">
+      <h3 className="text-base font-bold text-slate-800">{title}</h3>
+    </div>
+    <div className="p-5">{children}</div>
+  </div>
+);
+
+const EmptyState = ({ text }) => (
+  <div className="flex h-52 flex-col items-center justify-center gap-2 text-slate-400">
+    <svg className="h-10 w-10 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+    </svg>
+    <p className="text-sm font-medium">{text}</p>
+  </div>
+);
+
 const Dashboard = () => {
-  const [periodo, setPeriodo] = useState('mes'); // 👈 Estado para el filtro
+  const [periodo, setPeriodo] = useState('mes');
   const [overview, setOverview] = useState(null);
   const [estadisticasGenerales, setEstadisticasGenerales] = useState(null);
   const [reservasPorEstado, setReservasPorEstado] = useState([]);
@@ -23,20 +87,14 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
-
-  useEffect(() => {
-    cargarDatos();
-  }, [periodo]); // 👈 Recargar cuando cambie el periodo
+  useEffect(() => { cargarDatos(); }, [periodo]);
 
   const cargarDatos = async () => {
     try {
       setLoading(true);
       setError(null);
-      
       const data = await getDashboardOverview(periodo);
       setOverview(data || null);
-
       setEstadisticasGenerales(data?.estadisticasGenerales || null);
       setReservasPorEstado(data?.reservasPorEstado || []);
       setReservasPorPeriodo(data?.reservasPorPeriodo || []);
@@ -47,546 +105,347 @@ const Dashboard = () => {
       setClientesFrecuentes(data?.clientesFrecuentes || []);
       setProximasEntradas(data?.proximasEntradas || []);
       setProximasSalidas(data?.proximasSalidas || []);
-    } catch (error) {
-      console.error('Error al cargar datos del dashboard:', error);
+    } catch {
       setError('No se pudo cargar el dashboard. Verifica el servidor y tu sesión.');
     } finally {
       setLoading(false);
     }
   };
 
-  // 👇 Función para obtener el label del periodo
-  const getPeriodoLabel = () => {
-    const labels = {
-      'semana': 'Última Semana',
-      'mes': 'Este Mes',
-      'año': 'Este Año'
-    };
-    return labels[periodo] || 'Este Mes';
-  };
+  const getPeriodoLabel = () =>
+    ({ semana: 'Última semana', mes: 'Este mes', año: 'Este año' })[periodo] ?? 'Este mes';
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando dashboard...</p>
-        </div>
+  const fmtBs = (n) =>
+    `Bs. ${Number(n || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  if (loading) return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="text-center">
+        <div className="mx-auto mb-4 h-14 w-14 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
+        <p className="font-semibold text-slate-600">Cargando dashboard…</p>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <div className="border-b border-slate-200 bg-white px-6 py-5 shadow-sm">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 sm:text-3xl">Panel de control</h1>
+            <p className="mt-0.5 text-sm text-slate-500">
+              Estadísticas y métricas del hostal
+              {overview?.rango?.inicio && (
+                <span className="ml-2 rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-600">
+                  {new Date(overview.rango.inicio).toLocaleDateString('es-ES')} — {new Date(overview.rango.fin).toLocaleDateString('es-ES')}
+                </span>
+              )}
+            </p>
+          </div>
+
+          {/* Filtros */}
+          <div className="flex gap-1.5 rounded-xl bg-slate-100 p-1">
+            {[['semana', 'Semana'], ['mes', 'Mes'], ['año', 'Año']].map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setPeriodo(key)}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+                  periodo === key
+                    ? 'bg-white text-indigo-700 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         {error && (
-          <div className="mb-6 bg-red-50 border-2 border-red-200 rounded-xl p-4">
-            <p className="text-red-800 font-semibold">{error}</p>
-            <button
-              onClick={cargarDatos}
-              className="mt-3 px-4 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition"
-            >
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-5 flex items-center justify-between">
+            <p className="font-semibold text-red-700">{error}</p>
+            <button onClick={cargarDatos} className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition">
               Reintentar
             </button>
           </div>
         )}
 
-        {/* Header con filtros */}
-        <div className="mb-6 md:mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">📊 Dashboard</h1>
-              <p className="text-gray-600">Panel de control y estadísticas del hostal</p>
-            </div>
-            
-            {/* 👇 FILTROS DE PERIODO */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPeriodo('semana')}
-                className={`px-4 py-2 rounded-xl font-semibold transition-all ${
-                  periodo === 'semana'
-                    ? 'bg-blue-600 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'
-                }`}
-              >
-                Semana
-              </button>
-              <button
-                onClick={() => setPeriodo('mes')}
-                className={`px-4 py-2 rounded-xl font-semibold transition-all ${
-                  periodo === 'mes'
-                    ? 'bg-blue-600 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'
-                }`}
-              >
-                Mes
-              </button>
-              <button
-                onClick={() => setPeriodo('año')}
-                className={`px-4 py-2 rounded-xl font-semibold transition-all ${
-                  periodo === 'año'
-                    ? 'bg-blue-600 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'
-                }`}
-              >
-                Año
-              </button>
-            </div>
-          </div>
-
-          {/* Mostrar periodo seleccionado */}
-          {estadisticasGenerales && (
-            <div className="mt-4 bg-blue-50 border-2 border-blue-200 rounded-xl p-3">
-              <p className="text-sm text-blue-800">
-                <span className="font-semibold">Periodo:</span> {getPeriodoLabel()} 
-                {overview?.rango?.inicio && overview?.rango?.fin && (
-                  <span className="ml-2">
-                    ({new Date(overview.rango.inicio).toLocaleDateString('es-ES')} - {new Date(overview.rango.fin).toLocaleDateString('es-ES')})
-                  </span>
-                )}
-              </p>
-            </div>
-          )}
+        {/* Stat cards */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            icon="📅"
+            label="Total Reservas"
+            value={estadisticasGenerales?.totalReservas ?? 0}
+            sub={getPeriodoLabel()}
+            gradient="bg-gradient-to-br from-indigo-500 to-indigo-700"
+          />
+          <StatCard
+            icon="💰"
+            label="Ingresos"
+            value={fmtBs(estadisticasGenerales?.ingresosPeriodo)}
+            sub={getPeriodoLabel()}
+            gradient="bg-gradient-to-br from-emerald-500 to-emerald-700"
+          />
+          <StatCard
+            icon="👥"
+            label="Total Clientes"
+            value={estadisticasGenerales?.totalClientes ?? 0}
+            sub="Activos"
+            gradient="bg-gradient-to-br from-violet-500 to-violet-700"
+          />
+          <StatCard
+            icon="🏨"
+            label="Tasa de Ocupación"
+            value={`${Number(estadisticasGenerales?.tasaOcupacion || 0).toFixed(1)}%`}
+            sub={`${estadisticasGenerales?.habitacionesOcupadasRango ?? 0}/${estadisticasGenerales?.totalHabitaciones ?? 0} hab.`}
+            gradient="bg-gradient-to-br from-amber-500 to-amber-600"
+          />
         </div>
 
-        {/* Tarjetas de estadísticas generales */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl md:rounded-2xl p-4 md:p-6 text-white shadow-lg">
-            <div className="flex items-center justify-between mb-3 md:mb-4">
-              <div className="text-3xl md:text-4xl">📅</div>
-              <div className="text-right">
-                <p className="text-blue-100 text-sm">Total Reservas</p>
-                <p className="text-2xl md:text-3xl font-bold">
-                  {estadisticasGenerales?.totalReservas || 0}
-                </p>
-              </div>
-            </div>
-            <div className="text-blue-100 text-xs md:text-sm">
-              {getPeriodoLabel()}
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl md:rounded-2xl p-4 md:p-6 text-white shadow-lg">
-            <div className="flex items-center justify-between mb-3 md:mb-4">
-              <div className="text-3xl md:text-4xl">💰</div>
-              <div className="text-right">
-                <p className="text-green-100 text-sm">Ingresos</p>
-                <p className="text-2xl md:text-3xl font-bold">
-                  Bs. {(estadisticasGenerales?.ingresosPeriodo || 0).toLocaleString('es-BO', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                  })}
-                </p>
-              </div>
-            </div>
-            <div className="text-green-100 text-xs md:text-sm">
-              {getPeriodoLabel()}
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl md:rounded-2xl p-4 md:p-6 text-white shadow-lg">
-            <div className="flex items-center justify-between mb-3 md:mb-4">
-              <div className="text-3xl md:text-4xl">👥</div>
-              <div className="text-right">
-                <p className="text-purple-100 text-sm">Total Clientes</p>
-                <p className="text-2xl md:text-3xl font-bold">
-                  {estadisticasGenerales?.totalClientes || 0}
-                </p>
-              </div>
-            </div>
-            <div className="text-purple-100 text-xs md:text-sm">
-              Clientes activos
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl md:rounded-2xl p-4 md:p-6 text-white shadow-lg">
-            <div className="flex items-center justify-between mb-3 md:mb-4">
-              <div className="text-3xl md:text-4xl">🏨</div>
-              <div className="text-right">
-                <p className="text-amber-100 text-sm">Tasa de Ocupación</p>
-                <p className="text-2xl md:text-3xl font-bold">
-                  {Number(estadisticasGenerales?.tasaOcupacion || 0).toFixed(2)}%
-                </p>
-              </div>
-            </div>
-            <div className="text-amber-100 text-xs md:text-sm">
-              {estadisticasGenerales?.habitacionesOcupadasRango || 0} de {estadisticasGenerales?.totalHabitaciones || 0} ocupadas (en rango)
-            </div>
-          </div>
-        </div>
-
-        {/* KPIs extra */}
+        {/* KPIs */}
         {estadisticasGenerales && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-            <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border border-gray-100">
-              <p className="text-sm text-gray-500 mb-1">ADR (Bs./noche)</p>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">
-                Bs. {Number(estadisticasGenerales.adr || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <p className="text-xs text-gray-500 mt-2">Promedio por noche (reservas del periodo)</p>
-            </div>
-            <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border border-gray-100">
-              <p className="text-sm text-gray-500 mb-1">RevPAR (Bs.)</p>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">
-                Bs. {Number(estadisticasGenerales.revpar || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <p className="text-xs text-gray-500 mt-2">Ingresos por habitación disponible</p>
-            </div>
-            <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border border-gray-100">
-              <p className="text-sm text-gray-500 mb-1">Noches promedio</p>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">
-                {Number(estadisticasGenerales.nochesPromedio || 0).toFixed(2)}
-              </p>
-              <p className="text-xs text-gray-500 mt-2">Duración promedio de estancia</p>
-            </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <KpiCard
+              icon="📊"
+              label="ADR"
+              value={fmtBs(estadisticasGenerales.adr)}
+              description="Precio promedio por noche"
+            />
+            <KpiCard
+              icon="📈"
+              label="RevPAR"
+              value={fmtBs(estadisticasGenerales.revpar)}
+              description="Ingresos por habitación disponible"
+            />
+            <KpiCard
+              icon="🌙"
+              label="Noches promedio"
+              value={Number(estadisticasGenerales.nochesPromedio || 0).toFixed(2)}
+              description="Duración promedio de estancia"
+            />
           </div>
         )}
 
-        {/* Gráficas principales */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
-          {/* Reservas por Estado */}
-          <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg">
-            <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4">
-              Reservas por Estado - {getPeriodoLabel()}
-            </h3>
+        {/* Pie charts */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <SectionCard title={`Reservas por estado · ${getPeriodoLabel()}`}>
             {reservasPorEstado.length > 0 ? (
-              <div className="h-64 md:h-72 lg:h-80">
+              <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie
-                      data={reservasPorEstado}
-                      dataKey="cantidad"
-                      nameKey="estado"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      label={(entry) => `${entry.estado}: ${entry.cantidad}`}
-                    >
-                      {reservasPorEstado.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}-${entry.estado}`} 
-                          fill={COLORS[index % COLORS.length]} 
-                        />
+                    <Pie data={reservasPorEstado} dataKey="cantidad" nameKey="estado" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3}>
+                      {reservasPorEstado.map((_, i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value) => [value, 'Cantidad']} />
-                    <Legend />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend iconType="circle" iconSize={10} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-            ) : (
-              <div className="h-64 flex items-center justify-center text-gray-500">
-                No hay datos para este periodo
-              </div>
-            )}
-          </div>
+            ) : <EmptyState text="Sin datos para este periodo" />}
+          </SectionCard>
 
-          {/* Estado de Habitaciones */}
-          <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg">
-            <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4">Estado de Habitaciones</h3>
+          <SectionCard title="Estado actual de habitaciones">
             {estadoHabitaciones.length > 0 ? (
-              <div className="h-64 md:h-72 lg:h-80">
+              <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie
-                      data={estadoHabitaciones}
-                      dataKey="cantidad"
-                      nameKey="estado"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      label={(entry) => `${entry.estado}: ${entry.cantidad}`}
-                    >
-                      {estadoHabitaciones.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}-${entry.estado}`} 
-                          fill={COLORS[index % COLORS.length]} 
-                        />
+                    <Pie data={estadoHabitaciones} dataKey="cantidad" nameKey="estado" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3}>
+                      {estadoHabitaciones.map((_, i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value) => [value, 'Cantidad']} />
-                    <Legend />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend iconType="circle" iconSize={10} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-            ) : (
-              <div className="h-64 flex items-center justify-center text-gray-500">
-                No hay datos disponibles
-              </div>
-            )}
-          </div>
+            ) : <EmptyState text="Sin datos disponibles" />}
+          </SectionCard>
         </div>
 
-        {/* Reservas por Periodo */}
-        <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg mb-6 md:mb-8">
-          <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4">
-            Reservas e Ingresos - {getPeriodoLabel()}
-          </h3>
+        {/* Area chart reservas + ingresos */}
+        <SectionCard title={`Reservas e Ingresos · ${getPeriodoLabel()}`}>
           {reservasPorPeriodo.length > 0 ? (
-            <div className="h-72 md:h-80">
+            <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={reservasPorPeriodo}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="periodo" 
-                    angle={periodo === 'semana' || periodo === 'mes' ? -45 : 0}
-                    textAnchor={periodo === 'semana' || periodo === 'mes' ? 'end' : 'middle'}
-                    height={periodo === 'semana' || periodo === 'mes' ? 80 : 60}
-                  />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
-                  <Tooltip 
-                    formatter={(value, name) => [
-                      name === 'Ingresos (Bs.)' 
-                        ? `Bs. ${Number(value).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                        : value,
-                      name
-                    ]}
-                  />
-                  <Legend />
-                  <Line 
-                    yAxisId="left" 
-                    type="monotone" 
-                    dataKey="cantidad" 
-                    stroke="#3B82F6" 
-                    strokeWidth={2} 
-                    name="Reservas" 
-                    dot={{ r: 4 }}
-                  />
-                  <Line 
-                    yAxisId="right" 
-                    type="monotone" 
-                    dataKey="ingresos" 
-                    stroke="#10B981" 
-                    strokeWidth={2} 
-                    name="Ingresos (Bs.)" 
-                    dot={{ r: 4 }}
-                  />
-                </LineChart>
+                <AreaChart data={reservasPorPeriodo}>
+                  <defs>
+                    <linearGradient id="gReservas" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gIngresos" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="periodo" tick={{ fontSize: 11, fill: '#94a3b8' }} angle={periodo !== 'año' ? -35 : 0} textAnchor={periodo !== 'año' ? 'end' : 'middle'} height={periodo !== 'año' ? 70 : 40} />
+                  <YAxis yAxisId="left" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend iconType="circle" iconSize={10} />
+                  <Area yAxisId="left" type="monotone" dataKey="cantidad" stroke="#6366f1" strokeWidth={2} fill="url(#gReservas)" name="Reservas" dot={{ r: 3, fill: '#6366f1' }} />
+                  <Area yAxisId="right" type="monotone" dataKey="ingresos" stroke="#10b981" strokeWidth={2} fill="url(#gIngresos)" name="Ingresos (Bs.)" dot={{ r: 3, fill: '#10b981' }} />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
-          ) : (
-            <div className="h-72 flex items-center justify-center text-gray-500">
-              No hay datos para este periodo
-            </div>
-          )}
-        </div>
+          ) : <EmptyState text="Sin datos para este periodo" />}
+        </SectionCard>
 
-        {/* Ingresos por Periodo */}
-        <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg mb-6 md:mb-8">
-          <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4">
-            Ingresos Detallados - {getPeriodoLabel()}
-          </h3>
+        {/* Bar chart ingresos detallados */}
+        <SectionCard title={`Ingresos detallados · ${getPeriodoLabel()}`}>
           {ingresosPorPeriodo.length > 0 ? (
-            <div className="h-64 md:h-72">
+            <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={ingresosPorPeriodo}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="fecha" 
-                    angle={periodo === 'semana' || periodo === 'mes' ? -45 : 0}
-                    textAnchor={periodo === 'semana' || periodo === 'mes' ? 'end' : 'middle'}
-                    height={periodo === 'semana' || periodo === 'mes' ? 80 : 60}
-                  />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value) => [
-                      `Bs. ${Number(value).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                      'Ingresos'
-                    ]}
-                  />
-                  <Legend />
-                  <Bar dataKey="total" fill="#10B981" name="Ingresos (Bs.)" radius={[4, 4, 0, 0]} />
+                <BarChart data={ingresosPorPeriodo} barSize={24}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="fecha" tick={{ fontSize: 11, fill: '#94a3b8' }} angle={periodo !== 'año' ? -35 : 0} textAnchor={periodo !== 'año' ? 'end' : 'middle'} height={periodo !== 'año' ? 70 : 40} />
+                  <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                  <Tooltip formatter={(v) => [fmtBs(v), 'Ingresos']} />
+                  <Bar dataKey="total" name="Ingresos (Bs.)" radius={[6, 6, 0, 0]}>
+                    {ingresosPorPeriodo.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          ) : (
-            <div className="h-64 flex items-center justify-center text-gray-500">
-              No hay datos para este periodo
-            </div>
-          )}
-        </div>
+          ) : <EmptyState text="Sin datos para este periodo" />}
+        </SectionCard>
 
-        {/* Habitaciones Más Reservadas y Métodos de Pago */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
-          {/* Habitaciones Más Reservadas */}
-          <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg">
-            <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4">
-              Top 10 Habitaciones - {getPeriodoLabel()}
-            </h3>
+        {/* Habitaciones + métodos de pago */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <SectionCard title={`Top 10 habitaciones · ${getPeriodoLabel()}`}>
             {habitacionesMasReservadas.length > 0 ? (
-              <div className="h-72 md:h-80">
+              <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={habitacionesMasReservadas} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis 
-                      type="category" 
-                      dataKey="numero" 
-                      width={60}
-                      tickFormatter={(value) => `Hab. ${value}`}
-                    />
-                    <Tooltip formatter={(value) => [value, 'Reservas']} />
-                    <Legend />
-                    <Bar 
-                      dataKey="total_reservas" 
-                      fill="#8B5CF6" 
-                      name="Reservas" 
-                      radius={[0, 4, 4, 0]}
-                    />
+                  <BarChart data={habitacionesMasReservadas} layout="vertical" barSize={14}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                    <YAxis type="category" dataKey="numero" width={54} tickFormatter={(v) => `Hab. ${v}`} tick={{ fontSize: 11, fill: '#64748b' }} />
+                    <Tooltip formatter={(v) => [v, 'Reservas']} />
+                    <Bar dataKey="total_reservas" name="Reservas" radius={[0, 6, 6, 0]}>
+                      {habitacionesMasReservadas.map((_, i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            ) : (
-              <div className="h-72 flex items-center justify-center text-gray-500">
-                No hay datos para este periodo
-              </div>
-            )}
-          </div>
+            ) : <EmptyState text="Sin datos para este periodo" />}
+          </SectionCard>
 
-          {/* Métodos de Pago */}
-          <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg">
-            <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4">
-              Métodos de Pago - {getPeriodoLabel()}
-            </h3>
+          <SectionCard title={`Métodos de pago · ${getPeriodoLabel()}`}>
             {metodosPago.length > 0 ? (
-              <div className="h-72 md:h-80">
+              <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={metodosPago}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="metodo_pago" />
-                    <YAxis />
-                    <Tooltip 
-                      formatter={(value, name) => [
-                        name === 'Monto Total (Bs.)'
-                          ? `Bs. ${Number(value).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                          : value,
-                        name
-                      ]}
-                    />
-                    <Legend />
-                    <Bar 
-                      dataKey="cantidad" 
-                      fill="#F59E0B" 
-                      name="Cantidad" 
-                      radius={[4, 4, 0, 0]}
-                    />
-                    <Bar 
-                      dataKey="total_monto" 
-                      fill="#3B82F6" 
-                      name="Monto Total (Bs.)" 
-                      radius={[4, 4, 0, 0]}
-                    />
+                  <BarChart data={metodosPago} barGap={4} barSize={20}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="metodo_pago" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                    <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                    <Tooltip formatter={(v, name) => [name === 'Monto Total (Bs.)' ? fmtBs(v) : v, name]} />
+                    <Legend iconType="circle" iconSize={10} />
+                    <Bar dataKey="cantidad" fill="#6366f1" name="Cantidad" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="total_monto" fill="#10b981" name="Monto Total (Bs.)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            ) : (
-              <div className="h-72 flex items-center justify-center text-gray-500">
-                No hay datos para este periodo
-              </div>
-            )}
-          </div>
+            ) : <EmptyState text="Sin datos para este periodo" />}
+          </SectionCard>
         </div>
 
         {/* Clientes frecuentes + Próximos movimientos */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 pb-6">
-          <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg lg:col-span-2">
-            <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4">
-              Clientes frecuentes - {getPeriodoLabel()}
-            </h3>
+        <div className="grid grid-cols-1 gap-4 pb-6 lg:grid-cols-3">
+          <SectionCard title={`Clientes frecuentes · ${getPeriodoLabel()}`} className="lg:col-span-2">
             {clientesFrecuentes.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left text-gray-500 border-b">
-                      <th className="py-2 pr-3">Cliente</th>
-                      <th className="py-2 pr-3">Correo</th>
-                      <th className="py-2 pr-3">Reservas</th>
-                      <th className="py-2">Gasto (Bs.)</th>
+                    <tr className="border-b border-slate-100 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      <th className="pb-3 pr-4">#</th>
+                      <th className="pb-3 pr-4">Cliente</th>
+                      <th className="pb-3 pr-4">Correo</th>
+                      <th className="pb-3 pr-4 text-center">Reservas</th>
+                      <th className="pb-3 text-right">Gasto</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-50">
                     {clientesFrecuentes.map((c, idx) => (
-                      <tr key={`${c.correo || idx}`} className="border-b last:border-b-0">
-                        <td className="py-2 pr-3 font-semibold text-gray-900">{c.nombre} {c.apellido}</td>
-                        <td className="py-2 pr-3 text-gray-600">{c.correo || '-'}</td>
-                        <td className="py-2 pr-3">{c.total_reservas}</td>
-                        <td className="py-2">
-                          {Number(c.gasto_total || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <tr key={c.correo || idx} className="group hover:bg-slate-50 transition-colors">
+                        <td className="py-3 pr-4 text-slate-400 font-medium">#{idx + 1}</td>
+                        <td className="py-3 pr-4 font-semibold text-slate-800">{c.nombre} {c.apellido}</td>
+                        <td className="py-3 pr-4 text-slate-500 text-xs">{c.correo || '—'}</td>
+                        <td className="py-3 pr-4 text-center">
+                          <span className="inline-flex items-center justify-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700">
+                            {c.total_reservas}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right font-semibold text-emerald-700">
+                          {fmtBs(c.gasto_total)}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            ) : (
-              <div className="h-40 flex items-center justify-center text-gray-500">
-                No hay clientes frecuentes para este periodo
+            ) : <EmptyState text="Sin clientes frecuentes para este periodo" />}
+          </SectionCard>
+
+          <SectionCard title="Próximos 7 días">
+            <div className="space-y-5">
+              <div>
+                <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-600">
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
+                  Entradas
+                </p>
+                {proximasEntradas.length > 0 ? (
+                  <ul className="space-y-2">
+                    {proximasEntradas.map((r) => (
+                      <li key={`in-${r.id_reserva}`} className="flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2.5">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-800">{r.cliente}</p>
+                          <p className="text-xs text-slate-500">Hab. {r.habitacion} · {r.estado}</p>
+                        </div>
+                        <div className="ml-3 text-right flex-shrink-0">
+                          <p className="text-xs font-bold text-slate-700">{new Date(r.fecha_entrada).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</p>
+                          <p className="text-xs text-emerald-700 font-semibold">{fmtBs(r.total)}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p className="text-xs text-slate-400 italic">Sin entradas programadas</p>}
               </div>
-            )}
-          </div>
 
-          <div className="bg-white rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg">
-            <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4">
-              Próximos 7 días
-            </h3>
-
-            <div className="mb-5">
-              <p className="text-sm font-semibold text-gray-700 mb-2">Entradas</p>
-              {proximasEntradas.length > 0 ? (
-                <ul className="space-y-2">
-                  {proximasEntradas.map((r) => (
-                    <li key={`in-${r.id_reserva}`} className="p-3 rounded-xl bg-gray-50 border border-gray-100">
-                      <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-rose-500">
+                  <span className="flex h-2 w-2 rounded-full bg-rose-500" />
+                  Salidas
+                </p>
+                {proximasSalidas.length > 0 ? (
+                  <ul className="space-y-2">
+                    {proximasSalidas.map((r) => (
+                      <li key={`out-${r.id_reserva}`} className="flex items-center justify-between rounded-xl bg-rose-50 px-3 py-2.5">
                         <div className="min-w-0">
-                          <p className="font-semibold text-gray-900 truncate">{r.cliente}</p>
-                          <p className="text-xs text-gray-600">Hab. {r.habitacion} · {r.estado}</p>
+                          <p className="truncate text-sm font-semibold text-slate-800">{r.cliente}</p>
+                          <p className="text-xs text-slate-500">Hab. {r.habitacion} · {r.estado}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold text-gray-900">
-                            {new Date(r.fecha_entrada).toLocaleDateString('es-ES')}
-                          </p>
-                          <p className="text-xs text-gray-600">
-                            Bs. {Number(r.total || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </p>
+                        <div className="ml-3 text-right flex-shrink-0">
+                          <p className="text-xs font-bold text-slate-700">{new Date(r.fecha_salida).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</p>
+                          <p className="text-xs text-rose-600 font-semibold">{fmtBs(r.total)}</p>
                         </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-gray-500">Sin entradas programadas</p>
-              )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p className="text-xs text-slate-400 italic">Sin salidas programadas</p>}
+              </div>
             </div>
-
-            <div>
-              <p className="text-sm font-semibold text-gray-700 mb-2">Salidas</p>
-              {proximasSalidas.length > 0 ? (
-                <ul className="space-y-2">
-                  {proximasSalidas.map((r) => (
-                    <li key={`out-${r.id_reserva}`} className="p-3 rounded-xl bg-gray-50 border border-gray-100">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-semibold text-gray-900 truncate">{r.cliente}</p>
-                          <p className="text-xs text-gray-600">Hab. {r.habitacion} · {r.estado}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold text-gray-900">
-                            {new Date(r.fecha_salida).toLocaleDateString('es-ES')}
-                          </p>
-                          <p className="text-xs text-gray-600">
-                            Bs. {Number(r.total || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </p>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-gray-500">Sin salidas programadas</p>
-              )}
-            </div>
-          </div>
+          </SectionCard>
         </div>
       </div>
     </div>

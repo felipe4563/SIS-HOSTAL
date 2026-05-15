@@ -1,11 +1,14 @@
 import express from 'express';
-import { iniciarPago, webhookRedEnlace, verificarEstadoPago } from '../controllers/pago.controller.js'; // ← SIN PUNTO
-import { authMiddleware } from '../middlewares/authMiddleware.js'; // ← SIN "S" EN middleware
+import { iniciarPago, iniciarPagoMultiple, webhookRedEnlace, verificarEstadoPago } from '../controllers/pago.controller.js';
+import { authMiddleware } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
 // Iniciar proceso de pago (requiere autenticación)
 router.post('/iniciar', authMiddleware, iniciarPago);
+
+// Iniciar pago único para múltiples reservas del carrito
+router.post('/iniciar-multiple', authMiddleware, iniciarPagoMultiple);
 
 // Webhook para recibir confirmaciones de Red Enlace (SIN autenticación - importante!)
 router.post('/webhook-red-enlace', webhookRedEnlace);

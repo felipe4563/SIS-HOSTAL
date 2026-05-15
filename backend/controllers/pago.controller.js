@@ -1,5 +1,5 @@
 import { RedEnlaceService } from '../services/redEnlaceService.js';
-import db from '../config/db.js'; // ← CORREGIDO: database.js
+import db from '../config/db.js';
 
 /**
  * Iniciar proceso de pago
@@ -94,6 +94,95 @@ export const iniciarPago = async (req, res) => {
 };
 
 /**
+ * Iniciar pago único para múltiples reservas (carrito)
+ */
+export const iniciarPagoMultiple = async (req, res) => {
+  const { ids_reserva } = req.body;
+
+  if (!Array.isArray(ids_reserva) || ids_reserva.length === 0) {
+    return res.status(400).json({ message: 'Se requiere un array de ids_reserva' });
+  }
+
+  try {
+    const placeholders = ids_reserva.map(() => '?').join(',');
+    const [reservas] = await db.query(
+      `SELECT r.*, c.correo, c.nombre, c.apellido,
+              h.numero AS numero_habitacion,
+              t.nombre AS tipo_habitacion
+       FROM reserva r
+       INNER JOIN cliente c ON r.id_cliente = c.id_cliente
+       INNER JOIN habitacion h ON r.id_habitacion = h.id_habitacion
+       INNER JOIN tipo t ON h.id_tipo = t.id_tipo
+       WHERE r.id_reserva IN (${placeholders})`,
+      ids_reserva
+    );
+
+    if (reservas.length !== ids_reserva.length) {
+      return res.status(404).json({ message: 'Alguna reserva no fue encontrada' });
+    }
+
+    const noDisponibles = reservas.filter((r) => r.estado !== 'pendiente');
+    if (noDisponibles.length > 0) {
+      return res.status(400).json({ message: 'Algunas reservas ya fueron procesadas' });
+    }
+
+    // Verificar que el cliente autenticado sea el dueño
+    if (req.usuario.id_cliente && req.usuario.id_cliente !== reservas[0].id_cliente) {
+      return res.status(403).json({ message: 'No tienes permiso para procesar estas reservas' });
+    }
+
+    const montoTotal = reservas.reduce((sum, r) => sum + parseFloat(r.total), 0);
+    const cliente = reservas[0];
+
+    const habitacionesStr = reservas.map((r) => `Hab. ${r.numero_habitacion}`).join(', ');
+    const descripcion = `${ids_reserva.length} habitaciones (${habitacionesStr}) - ${cliente.nombre} ${cliente.apellido}`;
+
+    console.log('🛒 Iniciando pago múltiple:', {
+      ids_reserva,
+      cliente: `${cliente.nombre} ${cliente.apellido}`,
+      monto_total: montoTotal,
+    });
+
+    // Crear UNA transacción en Red Enlace con el total combinado
+    const resultado = await RedEnlaceService.crearTransaccion({
+      id_reserva: ids_reserva[0], // referencia primaria para el webhook
+      total: montoTotal.toFixed(2),
+      descripcion,
+      numero_habitacion: habitacionesStr,
+      tipo_habitacion: reservas.map((r) => r.tipo_habitacion).join(', '),
+    });
+
+    // Un solo registro en pago que cubre todas las reservas
+    const [resultPago] = await db.query(
+      `INSERT INTO pago (id_reserva, monto, metodo_pago, estado_pago, transaccion_id, datos_transaccion)
+       VALUES (?, ?, 'red_enlace', 'pendiente', ?, ?)`,
+      [
+        ids_reserva[0],
+        montoTotal.toFixed(2),
+        resultado.reference,
+        JSON.stringify({ ...resultado.data, ids_reserva_todas: ids_reserva }),
+      ]
+    );
+
+    console.log(`💳 Pago múltiple iniciado - ID Pago: ${resultPago.insertId}, Reservas: ${ids_reserva.join(', ')}`);
+    console.log(`🔗 Link de pago: ${resultado.paymentUrl}`);
+
+    res.json({
+      success: true,
+      paymentUrl: resultado.paymentUrl,
+      reference: resultado.reference,
+      id_pago: resultPago.insertId,
+      ids_reserva,
+      monto_total: montoTotal,
+      message: 'Redirigiendo a la pasarela de pago...',
+    });
+  } catch (error) {
+    console.error('❌ Error al iniciar pago múltiple:', error);
+    res.status(500).json({ message: error.message || 'Error al procesar el pago' });
+  }
+};
+
+/**
  * Webhook para recibir confirmaciones de Red Enlace
  * Este endpoint NO requiere autenticación porque Red Enlace lo llama
  */
@@ -135,7 +224,7 @@ export const webhookRedEnlace = async (req, res) => {
       respuesta_original: resultado.respuesta_original
     });
 
-    // Verificar que la reserva existe
+    // Verificar que la reserva primaria existe
     const [reservaExiste] = await db.query(
       'SELECT id_reserva, estado FROM reserva WHERE id_reserva = ?',
       [resultado.id_reserva]
@@ -146,16 +235,36 @@ export const webhookRedEnlace = async (req, res) => {
       return res.status(404).json({ error: 'Reserva no encontrada' });
     }
 
-    console.log('📋 Reserva actual - Estado:', reservaExiste[0].estado);
+    console.log('📋 Reserva primaria - Estado:', reservaExiste[0].estado);
 
-    // Actualizar el estado de la reserva
-    const [updateReserva] = await db.query(
-      `UPDATE reserva SET estado = ? WHERE id_reserva = ?`,
-      [resultado.estado_reserva, resultado.id_reserva]
+    // Buscar todas las reservas vinculadas al mismo pago (puede ser un pago múltiple)
+    const [pagoInfo] = await db.query(
+      'SELECT datos_transaccion FROM pago WHERE transaccion_id = ? LIMIT 1',
+      [reference]
     );
 
-    console.log(`📝 Reserva actualizada - Filas afectadas: ${updateReserva.affectedRows}`);
-    console.log(`📝 Nuevo estado reserva: ${resultado.estado_reserva}`);
+    let idsReserva = [resultado.id_reserva];
+    if (pagoInfo.length > 0 && pagoInfo[0].datos_transaccion) {
+      try {
+        const datos = JSON.parse(pagoInfo[0].datos_transaccion);
+        if (Array.isArray(datos.ids_reserva_todas) && datos.ids_reserva_todas.length > 0) {
+          idsReserva = datos.ids_reserva_todas;
+          console.log(`🛒 Pago múltiple detectado - Actualizando reservas: ${idsReserva.join(', ')}`);
+        }
+      } catch (e) {
+        console.warn('No se pudo parsear datos_transaccion, usando solo reserva primaria');
+      }
+    }
+
+    // Actualizar TODAS las reservas vinculadas al pago
+    const placeholders = idsReserva.map(() => '?').join(',');
+    const [updateReserva] = await db.query(
+      `UPDATE reserva SET estado = ? WHERE id_reserva IN (${placeholders})`,
+      [resultado.estado_reserva, ...idsReserva]
+    );
+
+    console.log(`📝 Reservas actualizadas - Filas afectadas: ${updateReserva.affectedRows}`);
+    console.log(`📝 Nuevo estado: ${resultado.estado_reserva} → Reservas: ${idsReserva.join(', ')}`);
 
     // Actualizar el estado del pago
     const [updatePago] = await db.query(
@@ -174,15 +283,16 @@ export const webhookRedEnlace = async (req, res) => {
     console.log(`💰 Pago actualizado - Filas afectadas: ${updatePago.affectedRows}`);
     console.log(`💰 Nuevo estado pago: ${resultado.estado_pago}`);
 
-    // Verificar que se actualizó
+    // Verificar que se actualizaron
     const [verificacion] = await db.query(
-      'SELECT estado FROM reserva WHERE id_reserva = ?',
-      [resultado.id_reserva]
+      `SELECT id_reserva, estado FROM reserva WHERE id_reserva IN (${placeholders})`,
+      idsReserva
     );
-    console.log(`✅ VERIFICACIÓN FINAL - Estado en BD: ${verificacion[0].estado}`);
+    verificacion.forEach((r) => {
+      console.log(`✅ VERIFICACIÓN - Reserva #${r.id_reserva} → Estado: ${r.estado}`);
+    });
 
-    // Logs finales
-    console.log(`✅ Reserva #${resultado.id_reserva} → Estado: ${resultado.estado_reserva}`);
+    console.log(`✅ ${idsReserva.length} reserva(s) → Estado: ${resultado.estado_reserva}`);
     console.log(`💰 Pago → Estado: ${resultado.estado_pago}`);
     console.log('🔔 ===== FIN WEBHOOK EXITOSO =====\n');
 

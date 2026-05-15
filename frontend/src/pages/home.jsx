@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { getHabitaciones } from '../services/habitacion';
@@ -12,6 +12,11 @@ function Home() {
   const { usuario, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
+  const mapRef = useRef(null);
+
+  const scrollAlMapa = () => {
+    mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   const [habitaciones, setHabitaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -232,16 +237,18 @@ function Home() {
                 <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs sm:text-sm">📶 WiFi rápido</span>
                 <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs sm:text-sm">🛎️ Atención 24/7</span>
                 <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs sm:text-sm">🧹 Habitaciones impecables</span>
-                <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs sm:text-sm">📍 Excelente ubicación</span>
+                <button
+                  type="button"
+                  onClick={scrollAlMapa}
+                  className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs sm:text-sm hover:bg-white/20 transition-colors cursor-pointer"
+                >
+                  📍 Excelente ubicación
+                </button>
               </div>
 
-              <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-                <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur animate-fade-up-delay-1">
-                  <p className="text-xs uppercase tracking-wide text-blue-200">Resultados</p>
-                  <p className="mt-1 text-2xl font-bold">{totalHabitaciones}</p>
-                </div>
+              <div className="mt-7 grid grid-cols-2 gap-3 sm:gap-4">
                 <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur animate-fade-up-delay-2">
-                  <p className="text-xs uppercase tracking-wide text-blue-200">Disponibles</p>
+                  <p className="text-xs uppercase tracking-wide text-blue-200">Disponibles ahora</p>
                   <p className="mt-1 text-2xl font-bold">{habitacionesDisponibles}</p>
                 </div>
                 <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur animate-fade-up-delay-3">
@@ -286,18 +293,14 @@ function Home() {
           <FiltrosHabitaciones onFiltrar={handleFiltrar} filtrosActivos={filtros} />
         </div>
 
-        {!loading && !error && (
+        {!loading && !error && totalHabitaciones > 0 && (
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3 animate-fade-up-delay-2">
-            <p className="text-sm font-medium text-slate-700 sm:text-base">
-              {totalHabitaciones > 0
-                ? `Mostrando ${totalHabitaciones} habitación${totalHabitaciones > 1 ? 'es' : ''}`
-                : 'No hay habitaciones para los filtros seleccionados'}
+            <p className="text-sm font-medium text-slate-600 sm:text-base">
+              {totalHabitaciones} habitación{totalHabitaciones > 1 ? 'es' : ''} encontrada{totalHabitaciones > 1 ? 's' : ''}
             </p>
-            {totalHabitaciones > 0 && (
-              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 sm:text-sm animate-pulse-glow">
-                ✓ {habitacionesDisponibles} disponibles ahora
-              </span>
-            )}
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 sm:text-sm">
+              ✓ {habitacionesDisponibles} disponible{habitacionesDisponibles !== 1 ? 's' : ''}
+            </span>
           </div>
         )}
 
@@ -351,13 +354,129 @@ function Home() {
         )}
       </main>
 
-      <footer className="mt-16 bg-slate-900 py-7 text-white sm:mt-20 sm:py-8">
+      {/* ===== SECCIÓN UBICACIÓN ===== */}
+      <section ref={mapRef} className="mt-16 sm:mt-20 scroll-mt-4">
+        {/* Encabezado de sección */}
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-8 flex flex-col items-center text-center">
+            <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-blue-600">
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Cómo llegar
+            </span>
+            <h2 className="text-2xl font-extrabold text-slate-900 sm:text-3xl lg:text-4xl">
+              Estamos en el corazón de <span className="text-amber-500">Cochabamba</span>
+            </h2>
+            <p className="mt-3 max-w-xl text-sm text-slate-500 sm:text-base">
+              Ubicación privilegiada, a minutos del centro. Fácil acceso en transporte público o vehículo propio.
+            </p>
+          </div>
+        </div>
+
+        {/* Tarjeta principal con mapa */}
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl lg:grid lg:grid-cols-5">
+
+            {/* Panel izquierdo — info */}
+            <div className="flex flex-col justify-between bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-900 p-7 text-white sm:p-10 lg:col-span-2">
+              {/* Logo / nombre */}
+              <div>
+                <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-400/20 ring-1 ring-amber-400/40">
+                  <span className="text-3xl">🏨</span>
+                </div>
+                <h3 className="text-2xl font-black sm:text-3xl">Hostal Suri</h3>
+                <p className="mt-1 text-sm font-medium text-blue-300">Cochabamba, Bolivia</p>
+              </div>
+
+              {/* Datos de contacto / ubicación */}
+              <div className="my-8 space-y-5">
+                <InfoRow
+                  icon={
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  }
+                  title="Dirección"
+                  text="Cochabamba, Bolivia"
+                />
+                <InfoRow
+                  icon={
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  }
+                  title="Atención"
+                  text="Lunes a Domingo · 24 horas"
+                />
+                <InfoRow
+                  icon={
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                    </svg>
+                  }
+                  title="Coordenadas"
+                  text="-17.4018° S, -66.1560° O"
+                />
+              </div>
+
+              {/* Botón principal */}
+              <a
+                href="https://maps.app.goo.gl/MAWGs7k6Sp4U2xhy6"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center justify-center gap-3 rounded-2xl bg-amber-400 px-6 py-4 font-bold text-slate-900 shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:bg-amber-300 hover:shadow-xl"
+              >
+                <svg className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+                Abrir en Google Maps
+                <svg className="h-4 w-4 opacity-60 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+
+              {/* Chips de ventajas */}
+              <div className="mt-5 flex flex-wrap gap-2">
+                {['Zona céntrica', 'Transporte cercano', 'Fácil acceso'].map((chip) => (
+                  <span key={chip} className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-blue-100">
+                    {chip}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Panel derecho — mapa embebido */}
+            <div className="relative lg:col-span-3">
+              {/* Badge sobre el mapa */}
+              <div className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-xl border border-white/60 bg-white/90 px-3 py-2 shadow-lg backdrop-blur-sm">
+                <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-200" />
+                <span className="text-xs font-semibold text-slate-800">Hostal Suri</span>
+              </div>
+
+              <iframe
+                title="Ubicación Hostal Suri"
+                src="https://maps.google.com/maps?q=-17.4017855,-66.1559826&z=17&output=embed"
+                className="h-72 w-full sm:h-96 lg:h-full"
+                style={{ minHeight: '400px', border: 0 }}
+                loading="lazy"
+                allowFullScreen
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="mt-12 bg-slate-900 py-7 text-white sm:mt-14 sm:py-8">
         <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
           <div className="mb-3 flex items-center justify-center gap-2">
             <span className="text-xl sm:text-2xl">🏨</span>
             <span className="text-base font-bold sm:text-xl">Hostal Suri</span>
           </div>
-          <p className="text-xs text-slate-400 sm:text-sm">&copy; 2025 Hostal Suri. Todos los derechos reservados.</p>
+          <p className="text-xs text-slate-400 sm:text-sm">&copy; 2026 Hostal Suri. Todos los derechos reservados.</p>
         </div>
       </footer>
 
@@ -383,6 +502,20 @@ function Home() {
 
       {/* BOTÓN FLOTANTE DEL CARRITO */}
       <BotonCarrito onClick={() => setMostrarModalCarrito(true)} />
+    </div>
+  );
+}
+
+function InfoRow({ icon, title, text }) {
+  return (
+    <div className="flex items-start gap-3.5">
+      <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/10 text-blue-300">
+        {icon}
+      </div>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-blue-400">{title}</p>
+        <p className="mt-0.5 text-sm font-medium text-white/90">{text}</p>
+      </div>
     </div>
   );
 }
