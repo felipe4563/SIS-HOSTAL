@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { getHabitaciones } from '../services/habitacion';
 import { getReportePorFechas } from '../services/reportes';
 import { exportarReportePDF } from '../pages/reportes/exportarReportePDF';
+import { AuthContext } from '../context/AuthContext';
 
 const Reportes = () => {
+  const { usuario } = useContext(AuthContext);
+  const tienePermiso = (p) => usuario?.permisos?.includes(p);
   // Estados para filtros
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
@@ -223,15 +226,17 @@ const Reportes = () => {
 
             {/* Botones de Acción */}
             <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
-              <button
-                onClick={generarReporte}
-                disabled={loading || !fechaInicio || !fechaFin}
-                className="px-6 py-2.5 bg-blue-900 hover:bg-blue-800 text-white text-sm font-semibold rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider"
-              >
-                {loading ? 'Generando Reporte...' : 'Generar Reporte'}
-              </button>
-              
-              {reporteGeneral && (
+              {tienePermiso('reporte.generar') && (
+                <button
+                  onClick={generarReporte}
+                  disabled={loading || !fechaInicio || !fechaFin}
+                  className="px-6 py-2.5 bg-blue-900 hover:bg-blue-800 text-white text-sm font-semibold rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider"
+                >
+                  {loading ? 'Generando Reporte...' : 'Generar Reporte'}
+                </button>
+              )}
+
+              {tienePermiso('reporte.generar') && reporteGeneral && (
                 <button
                   onClick={handleExportarPDF}
                   className="px-6 py-2.5 bg-red-700 hover:bg-red-600 text-white text-sm font-semibold rounded-md transition-colors uppercase tracking-wider flex items-center gap-2"
@@ -242,7 +247,7 @@ const Reportes = () => {
                   Exportar PDF
                 </button>
               )}
-              
+
               <button
                 onClick={limpiarFiltros}
                 className="px-6 py-2.5 border border-gray-300 text-gray-700 text-sm font-semibold rounded-md hover:bg-gray-50 transition-colors uppercase tracking-wider"

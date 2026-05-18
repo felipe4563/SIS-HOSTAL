@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import {
   listarHabitaciones,
   eliminarHabitacion,
   cambiarEstadoHabitacion,
 } from "../../services/habitacion";
+import { AuthContext } from "../../context/AuthContext.jsx";
 
 const HabitacionesLista = ({ onEdit, onTour360, reload }) => {
+  const { usuario } = useContext(AuthContext);
+  const tienePermiso = (p) => usuario?.permisos?.includes(p);
   const [habitaciones, setHabitaciones] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -306,49 +309,57 @@ const HabitacionesLista = ({ onEdit, onTour360, reload }) => {
                 </div>
 
                 {/* Acciones */}
-                <div className="flex gap-2 mb-3">
-                  <button
-                    onClick={() => onEdit(h)}
-                    className="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    ✏️ Editar
-                  </button>
+                {(tienePermiso('habitacion.editar') || tienePermiso('habitacion.eliminar')) && (
+                  <div className="flex gap-2 mb-3">
+                    {tienePermiso('habitacion.editar') && (
+                      <button
+                        onClick={() => onEdit(h)}
+                        className="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
+                      >
+                        ✏️ Editar
+                      </button>
+                    )}
 
-                  {onTour360 && (
-                    <button
-                      onClick={() => onTour360(h)}
-                      className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        tiene360
-                          ? 'bg-purple-500 hover:bg-purple-600 text-white'
-                          : 'bg-purple-100 hover:bg-purple-200 text-purple-700'
-                      }`}
-                    >
-                      🔄 {tiene360 ? 'Ver' : 'Agregar'} 360°
-                    </button>
-                  )}
+                    {onTour360 && tienePermiso('habitacion.editar') && (
+                      <button
+                        onClick={() => onTour360(h)}
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          tiene360
+                            ? 'bg-purple-500 hover:bg-purple-600 text-white'
+                            : 'bg-purple-100 hover:bg-purple-200 text-purple-700'
+                        }`}
+                      >
+                        🔄 {tiene360 ? 'Ver' : 'Agregar'} 360°
+                      </button>
+                    )}
 
-                  <button
-                    onClick={() => handleDelete(h.id_habitacion)}
-                    className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg text-sm font-medium transition-colors"
-                    title="Eliminar"
-                  >
-                    🗑️
-                  </button>
-                </div>
+                    {tienePermiso('habitacion.eliminar') && (
+                      <button
+                        onClick={() => handleDelete(h.id_habitacion)}
+                        className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg text-sm font-medium transition-colors"
+                        title="Eliminar"
+                      >
+                        🗑️
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {/* Cambio de estado */}
-                <div className="pt-3 border-t">
-                  <label className="text-xs text-gray-500 block mb-1">Cambiar estado:</label>
-                  <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                    value={h.estado}
-                    onChange={(e) => handleEstado(h.id_habitacion, e.target.value)}
-                  >
-                    <option value="disponible">✅ Disponible</option>
-                    <option value="ocupada">🔒 Ocupada</option>
-                    <option value="limpieza">🧹 En Limpieza</option>
-                  </select>
-                </div>
+                {tienePermiso('habitacion.editar') && (
+                  <div className="pt-3 border-t">
+                    <label className="text-xs text-gray-500 block mb-1">Cambiar estado:</label>
+                    <select
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                      value={h.estado}
+                      onChange={(e) => handleEstado(h.id_habitacion, e.target.value)}
+                    >
+                      <option value="disponible">✅ Disponible</option>
+                      <option value="ocupada">🔒 Ocupada</option>
+                      <option value="limpieza">🧹 En Limpieza</option>
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
           );

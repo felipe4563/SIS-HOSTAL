@@ -108,7 +108,11 @@ const RolesForm = ({
                            modulo.toLowerCase().includes("reserva") ? "📅" :
                            modulo.toLowerCase().includes("cliente") ? "👤" :
                            modulo.toLowerCase().includes("pago") ? "💰" :
-                           modulo.toLowerCase().includes("reporte") ? "📊" : "📁"}
+                           modulo.toLowerCase().includes("reporte") ? "📊" :
+                           modulo.toLowerCase().includes("limpieza") ? "🧹" :
+                           modulo.toLowerCase().includes("tipo") ? "🏷️" :
+                           modulo.toLowerCase().includes("rol") ? "🛡️" :
+                           modulo.toLowerCase().includes("dashboard") ? "📊" : "📁"}
                         </span>
                         <span className="font-medium text-gray-700">{modulo}</span>
                         <span className="text-xs text-gray-400">

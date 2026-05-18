@@ -1,30 +1,27 @@
-import { createContext, useState, useEffect } from "react";
+import { createContext, useState, useEffect, useMemo } from "react";
 import { defineAbilitiesFor } from "../ability/ability";
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [usuario, setUsuario] = useState(null);
-  const [ability, setAbility] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // ability se deriva de usuario en el mismo render — sin doble render ni parpadeo
+  const ability = useMemo(() => {
+    if (!usuario || usuario.tipo === 'cliente') return null;
+    return defineAbilitiesFor(usuario.permisos || []);
+  }, [usuario]);
 
   // Cargar usuario/cliente al montar
   useEffect(() => {
     const token = localStorage.getItem("token");
     const usuarioGuardado = localStorage.getItem("usuario");
-    
+
     if (token && usuarioGuardado) {
       try {
         const user = JSON.parse(usuarioGuardado);
         setUsuario(user);
-        
-        // Solo crear abilities si es un USUARIO del sistema (no cliente)
-        if (user.tipo !== 'cliente') {
-          setAbility(defineAbilitiesFor(user.permisos || []));
-        } else {
-          // Los clientes no necesitan abilities (solo hacen reservas)
-          setAbility(null);
-        }
       } catch (error) {
         console.error("Error al cargar usuario:", error);
         localStorage.removeItem("token");
@@ -37,19 +34,10 @@ export const AuthProvider = ({ children }) => {
   // Login: guarda token y usuario/cliente
   const login = (data) => {
     const { token, usuario: userData, cliente: clienteData } = data;
-    
-    // Determinar si es usuario del sistema o cliente
+
     const user = userData || clienteData;
-    
     setUsuario(user);
-    
-    // Solo crear abilities para usuarios del sistema (no clientes)
-    if (user.tipo !== 'cliente' && userData) {
-      setAbility(defineAbilitiesFor(userData.permisos || []));
-    } else {
-      setAbility(null);
-    }
-    
+
     localStorage.setItem("token", token);
     localStorage.setItem("usuario", JSON.stringify(user));
   };
@@ -57,10 +45,9 @@ export const AuthProvider = ({ children }) => {
   // Logout
   const logout = () => {
     setUsuario(null);
-    setAbility(null);
     localStorage.removeItem("token");
     localStorage.removeItem("usuario");
-    sessionStorage.clear(); // Limpiar también sessionStorage (reservas pendientes, etc.)
+    sessionStorage.clear();
   };
 
   // Verificar si es cliente

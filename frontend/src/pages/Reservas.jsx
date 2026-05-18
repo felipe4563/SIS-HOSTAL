@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import {
   obtenerTodasReservas,
   actualizarEstadoReserva,
@@ -14,8 +14,11 @@ import { crearCliente } from "../services/cliente";
 import ReservaForm from "./reservas/ReservaForm";
 import ReservasList from "./reservas/ReservasList";
 import toast from 'react-hot-toast';
+import { AuthContext } from "../context/AuthContext";
 
 const Reservas = () => {
+  const { usuario } = useContext(AuthContext);
+  const tienePermiso = (p) => usuario?.permisos?.includes(p);
   const [reservas, setReservas] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [habitaciones, setHabitaciones] = useState([]);
@@ -173,17 +176,19 @@ const Reservas = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Reservas</h1>
         <p className="text-gray-600">Administra todas las reservas del hostal</p>
-        <div className="mt-4">
-          <button
-            onClick={openCrearForm}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-semibold"
-          >
-            ➕ Nueva Reserva
-          </button>
-        </div>
+        {tienePermiso('reserva.crear') && (
+          <div className="mt-4">
+            <button
+              onClick={openCrearForm}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-semibold"
+            >
+              ➕ Nueva Reserva
+            </button>
+          </div>
+        )}
       </div>
 
-      {mostrarForm && (
+      {mostrarForm && (tienePermiso('reserva.crear') || tienePermiso('reserva.editar')) && (
         <div className="mb-6">
           <ReservaForm
             clientes={clientes}
@@ -218,7 +223,7 @@ const Reservas = () => {
         }}
       />
 
-      {mostrarModalEstado && reservaSeleccionada && (
+      {mostrarModalEstado && reservaSeleccionada && tienePermiso('reserva.editar') && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
             <h3 className="text-xl font-bold text-gray-900 mb-4">

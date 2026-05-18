@@ -511,6 +511,13 @@ export const checkOutReserva = async (req, res) => {
       [reserva.id_habitacion]
     );
 
+    // Crear tarea de limpieza automática
+    await connection.query(
+      `INSERT INTO limpieza (id_habitacion, id_reserva, tipo, estado)
+       VALUES (?, ?, 'checkout', 'pendiente')`,
+      [reserva.id_habitacion, idReserva]
+    );
+
     await connection.commit();
     return res.json({ message: 'Check-out realizado' });
   } catch (error) {

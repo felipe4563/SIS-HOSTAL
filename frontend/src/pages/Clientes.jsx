@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { obtenerClientes, actualizarCliente, eliminarCliente } from '../services/cliente';
+import { AuthContext } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -20,6 +21,8 @@ import {
 } from '@heroicons/react/24/outline';
 
 const Clientes = () => {
+  const { usuario } = useContext(AuthContext);
+  const tienePermiso = (p) => usuario?.permisos?.includes(p);
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -264,7 +267,9 @@ const Clientes = () => {
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Contacto</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Registro</th>
                     <th className="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
-                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
+                    {(tienePermiso('cliente.editar') || tienePermiso('cliente.eliminar')) && (
+                      <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -330,39 +335,59 @@ const Clientes = () => {
                           {formatearFecha(cliente.fecha_registro)}
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <button
-                            onClick={() => handleToggleEstado(cliente)}
-                            className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                          {tienePermiso('cliente.editar') ? (
+                            <button
+                              onClick={() => handleToggleEstado(cliente)}
+                              className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                                cliente.estado === 1
+                                  ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                                  : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                              }`}
+                            >
+                              {cliente.estado === 1 ? (
+                                <><CheckCircleIcon className="w-4 h-4 mr-1.5" /> Activo</>
+                              ) : (
+                                <><XCircleIcon className="w-4 h-4 mr-1.5" /> Inactivo</>
+                              )}
+                            </button>
+                          ) : (
+                            <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold border ${
                               cliente.estado === 1
-                                ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
-                                : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-                            }`}
-                          >
-                            {cliente.estado === 1 ? (
-                              <><CheckCircleIcon className="w-4 h-4 mr-1.5" /> Activo</>
-                            ) : (
-                              <><XCircleIcon className="w-4 h-4 mr-1.5" /> Inactivo</>
-                            )}
-                          </button>
+                                ? 'bg-green-50 text-green-700 border-green-200'
+                                : 'bg-red-50 text-red-700 border-red-200'
+                            }`}>
+                              {cliente.estado === 1 ? (
+                                <><CheckCircleIcon className="w-4 h-4 mr-1.5" /> Activo</>
+                              ) : (
+                                <><XCircleIcon className="w-4 h-4 mr-1.5" /> Inactivo</>
+                              )}
+                            </span>
+                          )}
                         </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end space-x-2">
-                            <button
-                              onClick={() => handleAbrirModalEditar(cliente)}
-                              className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                              title="Editar cliente"
-                            >
-                              <PencilSquareIcon className="w-5 h-5" />
-                            </button>
-                            <button
-                              onClick={() => handleEliminar(cliente.id_cliente)}
-                              className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                              title="Eliminar cliente"
-                            >
-                              <TrashIcon className="w-5 h-5" />
-                            </button>
-                          </div>
-                        </td>
+                        {(tienePermiso('cliente.editar') || tienePermiso('cliente.eliminar')) && (
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end space-x-2">
+                              {tienePermiso('cliente.editar') && (
+                                <button
+                                  onClick={() => handleAbrirModalEditar(cliente)}
+                                  className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                  title="Editar cliente"
+                                >
+                                  <PencilSquareIcon className="w-5 h-5" />
+                                </button>
+                              )}
+                              {tienePermiso('cliente.eliminar') && (
+                                <button
+                                  onClick={() => handleEliminar(cliente.id_cliente)}
+                                  className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                                  title="Eliminar cliente"
+                                >
+                                  <TrashIcon className="w-5 h-5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        )}
                       </motion.tr>
                     ))}
                   </AnimatePresence>

@@ -18,6 +18,7 @@ import pricingRoutes from './routes/pricing.routes.js'; // 👈 NUEVO
 import { defineAbilitiesFor } from './config/abilities.js';
 import eventosExternosService from './services/eventosExternos.service.js'; // 👈 NUEVO
 import pagoRoutes from './routes/pago.routes.js'; // 👈 NUEVO
+import limpiezaRoutes from './routes/limpieza.routes.js';
 
 dotenv.config();
 const app = express();
@@ -77,7 +78,8 @@ app.use('/api/clientes', clienteRoutes);
 app.use('/api/reportes', reporteRoutes);
 app.use('/api/pricing', pricingRoutes); // 👈 NUEVO - Rutas de tarifas dinámicas
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/pagos', pagoRoutes); // 👈 NUEVO - Rutas de pagos
+app.use('/api/pagos',    pagoRoutes);
+app.use('/api/limpieza', limpiezaRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const PORT = process.env.PORT || 4000;

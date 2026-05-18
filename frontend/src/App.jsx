@@ -21,6 +21,7 @@ import Reservas from "./pages/Reservas";
 import Usuarios from "./pages/Usuarios";
 import Reportes from "./pages/Reportes";
 import Clientes from "./pages/Clientes";
+import Limpieza from "./pages/Limpieza";
 
 // 🔐 Ruta protegida con CASL
 import ProtectedRoute from "./components/protectedroute";
@@ -166,15 +167,25 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* Limpieza */}
+        <Route
+          path="limpieza"
+          element={
+            <ProtectedRoute action="read" subject="Limpieza">
+              <Limpieza />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       {/* ⚠️ Rutas no encontradas */}
       <Route
         path="*"
         element={
-          <Navigate 
-            to={esUsuarioSistema ? "/sistema" : "/"} 
-            replace 
+          <Navigate
+            to={esUsuarioSistema ? "/sistema" : esCliente ? "/" : "/login"}
+            replace
           />
         }
       />

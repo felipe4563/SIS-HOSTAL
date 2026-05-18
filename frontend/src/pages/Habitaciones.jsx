@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import HabitacionesLista from "../pages/habitacion/HabitacionesLista.jsx";
 import HabitacionForm from "../pages/habitacion/HabitacionesForm.jsx";
 import Imagenes360Manager from "./habitacion/imagenes360manager.jsx";
+import { AuthContext } from "../context/AuthContext";
 
 const Habitaciones = () => {
+  const { usuario } = useContext(AuthContext);
+  const tienePermiso = (p) => usuario?.permisos?.includes(p);
   const [activeTab, setActiveTab] = useState("habitaciones");
   const [editando, setEditando] = useState(null);
   const [reload, setReload] = useState(false);
@@ -49,25 +52,30 @@ const Habitaciones = () => {
       {/* Tabs */}
       <div className="flex flex-wrap border-b mb-4">
         {[
-          { id: "habitaciones", label: "🛏️ Habitaciones" },
-          { id: "formulario", label: "📝 Registrar/Editar" },
-        
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => {
-              setActiveTab(tab.id);
-              if (tab.id === "formulario") setEditando(null);
-            }}
-            className={`px-4 py-2 border-b-2 font-medium transition-colors ${
-              activeTab === tab.id
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+          { id: "habitaciones", label: "🛏️ Habitaciones", visible: true },
+          {
+            id: "formulario",
+            label: "📝 Registrar/Editar",
+            visible: tienePermiso("habitacion.crear") || tienePermiso("habitacion.editar"),
+          },
+        ]
+          .filter((tab) => tab.visible)
+          .map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id);
+                if (tab.id === "formulario") setEditando(null);
+              }}
+              className={`px-4 py-2 border-b-2 font-medium transition-colors ${
+                activeTab === tab.id
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
       </div>
 
       {/* Contenido según la pestaña activa */}
@@ -79,7 +87,7 @@ const Habitaciones = () => {
         />
       )}
 
-      {activeTab === "formulario" && (
+      {activeTab === "formulario" && (tienePermiso("habitacion.crear") || tienePermiso("habitacion.editar")) && (
         <HabitacionForm
           id={editando?.id_habitacion}
           onSuccess={handleHabitacionSaved}

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
+import { AuthContext } from "../../context/AuthContext.jsx";
 import {
   getRoles,
   createRol,
@@ -37,6 +38,8 @@ const parsePermiso = (nombre = "") => {
 const accionesDeLectura = new Set(["ver", "listar", "read", "list"]);
 
 const RolesList = () => {
+  const { usuario } = useContext(AuthContext);
+  const tienePermiso = (p) => usuario?.permisos?.includes(p);
   const [roles, setRoles] = useState([]);
   const [permisos, setPermisos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -310,16 +313,18 @@ const RolesList = () => {
               <p className="text-xs text-purple-600">Permisos</p>
             </div>
             
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className={`px-5 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 ${
-                showForm
-                  ? 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200'
-              }`}
-            >
-              {showForm ? '✕ Cerrar' : '➕ Nuevo Rol'}
-            </button>
+            {tienePermiso('rol.crear') && (
+              <button
+                onClick={() => setShowForm(!showForm)}
+                className={`px-5 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                  showForm
+                    ? 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200'
+                }`}
+              >
+                {showForm ? '✕ Cerrar' : '➕ Nuevo Rol'}
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -1,3 +1,6 @@
+import { useContext } from "react";
+import { AuthContext } from "../../context/AuthContext.jsx";
+
 const getPermisoColor = (permiso) => {
   const nombre = permiso.toLowerCase();
   if (nombre.includes("crear") || nombre.includes("create")) return "bg-green-100 text-green-700";
@@ -8,6 +11,8 @@ const getPermisoColor = (permiso) => {
 };
 
 const RolesItemsList = ({ roles, onEdit, onDelete, onCreateFirst }) => {
+  const { usuario } = useContext(AuthContext);
+  const tienePermiso = (p) => usuario?.permisos?.includes(p);
   return (
     <div className="bg-white shadow-md rounded-xl overflow-hidden">
       <div className="px-6 py-4 border-b bg-gray-50">
@@ -78,18 +83,22 @@ const RolesItemsList = ({ roles, onEdit, onDelete, onCreateFirst }) => {
                   <span className="text-xs text-gray-400 mr-2">
                     {rol.permisos.length} permisos
                   </span>
-                  <button
-                    onClick={() => onEdit(rol)}
-                    className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
-                  >
-                    ✏️ Editar
-                  </button>
-                  <button
-                    onClick={() => onDelete(rol.id_rol)}
-                    className="bg-red-100 hover:bg-red-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
-                  >
-                    🗑️ Eliminar
-                  </button>
+                  {tienePermiso('rol.editar') && (
+                    <button
+                      onClick={() => onEdit(rol)}
+                      className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
+                    >
+                      ✏️ Editar
+                    </button>
+                  )}
+                  {tienePermiso('rol.eliminar') && (
+                    <button
+                      onClick={() => onDelete(rol.id_rol)}
+                      className="bg-red-100 hover:bg-red-200 text-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
+                    >
+                      🗑️ Eliminar
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

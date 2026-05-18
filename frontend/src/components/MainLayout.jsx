@@ -101,6 +101,15 @@ const IconHome = ({ className = 'w-5 h-5' }) => (
   </svg>
 );
 
+const IconBroom = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+      d="M3 21l6-6m0 0l2-8 7-7-9 9m-2 6l-2-2m2 2l2 2M9 15l-2 2" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+      d="M15 3l2 2-9 9-2-2 9-9z" />
+  </svg>
+);
+
 /* ─────────────────────────────────────────── */
 
 const MainLayout = () => {
@@ -118,6 +127,7 @@ const MainLayout = () => {
     { name: 'Usuarios',     icon: <IconUsers />,     path: '/sistema/usuarios',     action: 'read', subject: 'Usuario'         },
     { name: 'Roles',        icon: <IconShield />,    path: '/sistema/roles',        action: 'read', subject: 'Role'            },
     { name: 'Reportes',     icon: <IconChart />,     path: '/sistema/reportes',     action: 'read', subject: 'Reporte'         },
+    { name: 'Limpieza',     icon: <IconBroom />,     path: '/sistema/limpieza',     action: 'read', subject: 'Limpieza'         },
   ];
 
   const menuFiltrado = menuItems.filter(item => ability?.can(item.action, item.subject));

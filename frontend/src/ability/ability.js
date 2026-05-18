@@ -37,6 +37,7 @@ export function defineAbilitiesFor(permisos = []) {
       pago: "Pago",
       ocupacion: "Ocupacion",
       tipo: "TipoHabitacion", // Tipos de habitación
+      limpieza: "Limpieza",
     };
 
     const accionCasl = accionMap[accion];

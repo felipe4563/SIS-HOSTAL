@@ -1,7 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import { listarTipos, crearTipo, eliminarTipo, actualizarTipo } from "../services/tipo";
+import { AuthContext } from "../context/AuthContext.jsx";
 
 const TiposHabitacionLista = () => {
+  const { usuario } = useContext(AuthContext);
+  const tienePermiso = (p) => usuario?.permisos?.includes(p);
   const [tipos, setTipos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -93,16 +96,18 @@ const TiposHabitacionLista = () => {
               Gestiona los tipos de habitación disponibles
             </p>
           </div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className={`px-5 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-              showForm
-                ? 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
-            }`}
-          >
-            {showForm ? '✕ Cerrar' : '➕ Nuevo Tipo'}
-          </button>
+          {(tienePermiso('tipo.crear') || tienePermiso('tipo.editar')) && (
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className={`px-5 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                showForm
+                  ? 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+            >
+              {showForm ? '✕ Cerrar' : '➕ Nuevo Tipo'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -223,7 +228,9 @@ const TiposHabitacionLista = () => {
                 <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Capacidad</th>
                 <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Precio Base</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Descripción</th>
-                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Acciones</th>
+                {(tienePermiso('tipo.editar') || tienePermiso('tipo.eliminar')) && (
+                  <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">Acciones</th>
+                )}
               </tr>
             </thead>
 
@@ -260,22 +267,28 @@ const TiposHabitacionLista = () => {
                     <td className="px-6 py-4 text-gray-600 text-sm">
                       {t.descripcion || <span className="text-gray-400">-</span>}
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => handleEdit(t)}
-                          className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                        >
-                          ✏️ Editar
-                        </button>
-                        <button
-                          onClick={() => handleDelete(t.id_tipo)}
-                          className="bg-red-100 hover:bg-red-200 text-red-600 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </td>
+                    {(tienePermiso('tipo.editar') || tienePermiso('tipo.eliminar')) && (
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-center gap-2">
+                          {tienePermiso('tipo.editar') && (
+                            <button
+                              onClick={() => handleEdit(t)}
+                              className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                            >
+                              ✏️ Editar
+                            </button>
+                          )}
+                          {tienePermiso('tipo.eliminar') && (
+                            <button
+                              onClick={() => handleDelete(t.id_tipo)}
+                              className="bg-red-100 hover:bg-red-200 text-red-600 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                            >
+                              🗑️
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

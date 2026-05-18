@@ -1,3 +1,6 @@
+import { useContext } from "react";
+import { AuthContext } from "../../context/AuthContext";
+
 const ReservasList = ({
   reservas,
   loading,
@@ -13,6 +16,8 @@ const ReservasList = ({
   onCheckOut,
   onOpenEstadoModal
 }) => {
+  const { usuario } = useContext(AuthContext);
+  const tienePermiso = (p) => usuario?.permisos?.includes(p);
   const formatearFecha = (fecha) =>
     new Date(fecha).toLocaleDateString("es-ES", {
       day: "2-digit",
@@ -122,7 +127,9 @@ const ReservasList = ({
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Noches</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Total</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Estado</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Acciones</th>
+                  {(tienePermiso('reserva.editar') || tienePermiso('reserva.eliminar')) && (
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Acciones</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -135,40 +142,44 @@ const ReservasList = ({
                     <td className="px-6 py-4 whitespace-nowrap"><span className="text-sm font-semibold text-gray-900">{calcularNoches(reserva.fecha_entrada, reserva.fecha_salida)}</span></td>
                     <td className="px-6 py-4 whitespace-nowrap"><span className="text-sm font-bold text-green-600">Bs. {parseFloat(reserva.total).toFixed(2)}</span></td>
                     <td className="px-6 py-4 whitespace-nowrap">{getEstadoBadge(reserva.estado)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center space-x-2">
-                        {/* Check-in / Check-out */}
-                        {reserva.estado !== "cancelada" && reserva.estado !== "finalizada" && (
-                          <>
-                            {!reserva.checkin_at ? (
-                              <button
-                                onClick={() => onCheckIn?.(reserva)}
-                                className="text-green-700 hover:text-green-900 font-semibold text-sm"
-                                title="Check-in"
-                              >
-                                🛬
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => onCheckOut?.(reserva)}
-                                className="text-amber-700 hover:text-amber-900 font-semibold text-sm"
-                                title={`Check-out (check-in: ${formatearFechaHora(reserva.checkin_at)})`}
-                              >
-                                🛫
-                              </button>
-                            )}
-                          </>
-                        )}
+                    {(tienePermiso('reserva.editar') || tienePermiso('reserva.eliminar')) && (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center space-x-2">
+                          {tienePermiso('reserva.editar') && reserva.estado !== "cancelada" && reserva.estado !== "finalizada" && (
+                            <>
+                              {!reserva.checkin_at ? (
+                                <button
+                                  onClick={() => onCheckIn?.(reserva)}
+                                  className="text-green-700 hover:text-green-900 font-semibold text-sm"
+                                  title="Check-in"
+                                >
+                                  🛬
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => onCheckOut?.(reserva)}
+                                  className="text-amber-700 hover:text-amber-900 font-semibold text-sm"
+                                  title={`Check-out (check-in: ${formatearFechaHora(reserva.checkin_at)})`}
+                                >
+                                  🛫
+                                </button>
+                              )}
+                            </>
+                          )}
 
-                        {reserva.estado !== "cancelada" && reserva.estado !== "finalizada" && (
-                          <>
-                            <button onClick={() => onEdit(reserva)} className="text-indigo-600 hover:text-indigo-800 font-semibold text-sm" title="Editar reserva">📝</button>
-                            <button onClick={() => onOpenEstadoModal(reserva)} className="text-blue-600 hover:text-blue-800 font-semibold text-sm" title="Cambiar estado">✏️</button>
-                          </>
-                        )}
-                        <button onClick={() => onDelete(reserva.id_reserva)} className="text-red-600 hover:text-red-800 font-semibold text-sm" title="Eliminar reserva">🗑️</button>
-                      </div>
-                    </td>
+                          {tienePermiso('reserva.editar') && reserva.estado !== "cancelada" && reserva.estado !== "finalizada" && (
+                            <>
+                              <button onClick={() => onEdit(reserva)} className="text-indigo-600 hover:text-indigo-800 font-semibold text-sm" title="Editar reserva">📝</button>
+                              <button onClick={() => onOpenEstadoModal(reserva)} className="text-blue-600 hover:text-blue-800 font-semibold text-sm" title="Cambiar estado">✏️</button>
+                            </>
+                          )}
+
+                          {tienePermiso('reserva.eliminar') && (
+                            <button onClick={() => onDelete(reserva.id_reserva)} className="text-red-600 hover:text-red-800 font-semibold text-sm" title="Eliminar reserva">🗑️</button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
