@@ -45,16 +45,6 @@ const Reportes = () => {
     });
   };
 
-  useEffect(() => {
-    cargarHabitaciones();
-    const hoy = new Date();
-    const haceUnMes = new Date();
-    haceUnMes.setMonth(haceUnMes.getMonth() - 1);
-    
-    setFechaFin(hoy.toISOString().split('T')[0]);
-    setFechaInicio(haceUnMes.toISOString().split('T')[0]);
-  }, []);
-
   const cargarHabitaciones = async () => {
     try {
       const data = await getHabitaciones();
@@ -64,8 +54,8 @@ const Reportes = () => {
     }
   };
 
-  const generarReporte = async () => {
-    if (!fechaInicio || !fechaFin) {
+  const generarReporte = async (inicio = fechaInicio, fin = fechaFin) => {
+    if (!inicio || !fin) {
       setError('Por favor seleccione un rango de fechas');
       return;
     }
@@ -75,8 +65,8 @@ const Reportes = () => {
       setError('');
 
       const params = {
-        fecha_inicio: fechaInicio,
-        fecha_fin: fechaFin,
+        fecha_inicio: inicio,
+        fecha_fin: fin,
         ...(habitacionSeleccionada && { id_habitacion: habitacionSeleccionada }),
         ...(estadoSeleccionado && { estado: estadoSeleccionado })
       };
@@ -91,6 +81,18 @@ const Reportes = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    cargarHabitaciones();
+    const hoy = new Date();
+    const haceUnMes = new Date();
+    haceUnMes.setMonth(haceUnMes.getMonth() - 1);
+    const fin   = hoy.toISOString().split('T')[0];
+    const inicio = haceUnMes.toISOString().split('T')[0];
+    setFechaFin(fin);
+    setFechaInicio(inicio);
+    generarReporte(inicio, fin);
+  }, []);
 
   const limpiarFiltros = () => {
     const hoy = new Date();
@@ -163,7 +165,7 @@ const Reportes = () => {
               {/* Fecha Inicio */}
               <div>
                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-                  Fecha de Inicio
+                  Fecha Creación (desde)
                 </label>
                 <input
                   type="date"
@@ -176,7 +178,7 @@ const Reportes = () => {
               {/* Fecha Fin */}
               <div>
                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-                  Fecha de Fin
+                  Fecha Creación (hasta)
                 </label>
                 <input
                   type="date"

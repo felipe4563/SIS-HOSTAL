@@ -25,7 +25,7 @@ const app = express();
 
 const defaultAllowedOrigins = [
   'http://localhost:5173',
-  'http://127.0.0.1:5173',
+  'hostalsuri.rusoft.dev',
 ];
 
 const envAllowedOrigins = (process.env.CORS_ORIGINS || '')
@@ -81,6 +81,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/pagos',    pagoRoutes);
 app.use('/api/limpieza', limpiezaRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const PORT = process.env.PORT || 4000;
 const HOST = process.env.HOST || '0.0.0.0';

@@ -12,7 +12,7 @@ export const getReportePorFechas = async (req, res) => {
     }
 
     let query = `
-      SELECT 
+      SELECT
         r.id_reserva,
         DATE(r.fecha_entrada) as fecha_entrada,
         DATE(r.fecha_salida) as fecha_salida,
@@ -28,16 +28,23 @@ export const getReportePorFechas = async (req, res) => {
         c.apellido as cliente_apellido,
         c.correo as cliente_correo,
         c.celular as cliente_celular,
-        p.monto as monto_pagado,
+        COALESCE(p.monto_pagado, 0) as monto_pagado,
         p.metodo_pago,
-        DATE(p.fecha_pago) as fecha_pago,
+        p.fecha_pago,
         DATEDIFF(r.fecha_salida, r.fecha_entrada) as noches
       FROM reserva r
       INNER JOIN habitacion h ON r.id_habitacion = h.id_habitacion
       INNER JOIN tipo t ON h.id_tipo = t.id_tipo
       INNER JOIN cliente c ON r.id_cliente = c.id_cliente
-      LEFT JOIN pago p ON r.id_reserva = p.id_reserva
-      WHERE DATE(r.fecha_entrada) >= ? AND DATE(r.fecha_entrada) <= ?
+      LEFT JOIN (
+        SELECT id_reserva,
+               SUM(monto)        as monto_pagado,
+               MAX(metodo_pago)  as metodo_pago,
+               DATE(MAX(fecha_pago)) as fecha_pago
+        FROM pago
+        GROUP BY id_reserva
+      ) p ON r.id_reserva = p.id_reserva
+      WHERE DATE(r.fecha_creacion) >= ? AND DATE(r.fecha_creacion) <= ?
     `;
 
     const params = [fecha_inicio, fecha_fin];
@@ -57,7 +64,7 @@ export const getReportePorFechas = async (req, res) => {
     const [reservas] = await db.query(query, params);
 
     const totalReservas = reservas.length;
-    const totalIngresos = reservas.reduce((sum, r) => sum + parseFloat(r.monto_pagado || 0), 0);
+    const totalIngresos = reservas.reduce((sum, r) => sum + parseFloat(r.total || 0), 0);
     const totalNoches = reservas.reduce((sum, r) => sum + (r.noches || 0), 0);
 
     res.json({
