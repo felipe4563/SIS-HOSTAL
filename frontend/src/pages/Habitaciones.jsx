@@ -1,7 +1,7 @@
 import { useState, useContext } from "react";
 import HabitacionesLista from "../pages/habitacion/HabitacionesLista.jsx";
 import HabitacionForm from "../pages/habitacion/HabitacionesForm.jsx";
-import Imagenes360Manager from "./habitacion/imagenes360manager.jsx";
+import Imagenes360Manager from "./habitacion/Imagenes360Manager.jsx";
 import { AuthContext } from "../context/AuthContext";
 
 const Habitaciones = () => {
