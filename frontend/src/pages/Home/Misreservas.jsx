@@ -81,8 +81,8 @@ const MisReservas = () => {
       baseUrl = baseUrl.replace('localhost', window.location.hostname);
     }
     
-    if (ruta.startsWith('habitaciones/')) return `${baseUrl}/uploads/${ruta}`;
-    return `${baseUrl}/uploads/habitaciones/${ruta}`;
+    if (ruta.startsWith('habitaciones/')) return `${baseUrl}/api/uploads/${ruta}`;
+    return `${baseUrl}/api/uploads/habitaciones/${ruta}`;
   };
 
   if (!usuario || usuario.tipo !== 'cliente') return null;
