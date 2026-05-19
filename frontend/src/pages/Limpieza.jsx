@@ -9,6 +9,7 @@ import {
   completarLimpieza,
   crearTareaLimpieza,
 } from '../services/limpieza.js';
+import { listarHabitaciones } from '../services/habitacion.js';
 
 /* ─── helpers ─── */
 const fmtFecha = (iso) => {
@@ -158,14 +159,42 @@ const TareaCard = ({ tarea, onIniciar, onCompletar, puedeEditar }) => {
   );
 };
 
+/* ─── helpers de estado para el selector ─── */
+const estadoClsBadge = {
+  disponible: 'bg-emerald-100 text-emerald-700',
+  ocupada:    'bg-red-100 text-red-700',
+  limpieza:   'bg-amber-100 text-amber-700',
+};
+
 /* ─── Modal crear tarea manual ─── */
 const ModalCrear = ({ onClose, onCreada }) => {
   const [form, setForm] = useState({ id_habitacion: '', tipo: 'mantenimiento', observaciones: '' });
+  const [habitaciones, setHabitaciones] = useState([]);
+  const [loadingHabs, setLoadingHabs] = useState(true);
   const [cargando, setCargando] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
+
+  useEffect(() => {
+    listarHabitaciones()
+      .then(setHabitaciones)
+      .catch(() => toast.error('No se pudieron cargar las habitaciones'))
+      .finally(() => setLoadingHabs(false));
+  }, []);
+
+  const habsFiltradas = habitaciones.filter((h) => {
+    const q = busqueda.toLowerCase();
+    return (
+      h.numero.toString().includes(q) ||
+      h.tipo_habitacion?.toLowerCase().includes(q) ||
+      h.piso?.toString().includes(q)
+    );
+  });
+
+  const habSeleccionada = habitaciones.find((h) => h.id_habitacion === Number(form.id_habitacion));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.id_habitacion) return toast.error('Ingresa el número de habitación');
+    if (!form.id_habitacion) return toast.error('Selecciona una habitación');
     setCargando(true);
     try {
       await onCreada(form);
@@ -183,22 +212,96 @@ const ModalCrear = ({ onClose, onCreada }) => {
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+
+          {/* Selector de habitación */}
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-              ID de Habitación
+              Habitación
             </label>
-            <input
-              type="number"
-              value={form.id_habitacion}
-              onChange={(e) => setForm((f) => ({ ...f, id_habitacion: e.target.value }))}
-              placeholder="Ej: 5"
-              className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-              required
-            />
+
+            {loadingHabs ? (
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-400">
+                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                Cargando habitaciones…
+              </div>
+            ) : (
+              <div className="rounded-xl border border-slate-200 overflow-hidden">
+                {/* Buscador */}
+                <div className="border-b border-slate-100 px-3 py-2 flex items-center gap-2">
+                  <svg className="h-4 w-4 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    placeholder="Buscar por número, tipo o piso…"
+                    className="flex-1 text-sm outline-none placeholder-slate-400"
+                  />
+                </div>
+
+                {/* Lista de habitaciones */}
+                <div className="max-h-44 overflow-y-auto divide-y divide-slate-50">
+                  {habsFiltradas.length === 0 ? (
+                    <p className="px-4 py-6 text-center text-sm text-slate-400">Sin resultados</p>
+                  ) : (
+                    habsFiltradas.map((h) => {
+                      const seleccionada = Number(form.id_habitacion) === h.id_habitacion;
+                      return (
+                        <button
+                          key={h.id_habitacion}
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, id_habitacion: h.id_habitacion }))}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                            seleccionada ? 'bg-blue-50' : 'hover:bg-slate-50'
+                          }`}
+                        >
+                          {/* Número */}
+                          <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg font-black text-sm ${
+                            seleccionada ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'
+                          }`}>
+                            {h.numero}
+                          </div>
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-800 leading-tight">
+                              Hab. {h.numero}
+                              <span className="ml-1.5 text-xs font-normal text-slate-400">· Piso {h.piso}</span>
+                            </p>
+                            <p className="text-xs text-slate-500 truncate">{h.tipo_habitacion}</p>
+                          </div>
+                          {/* Estado */}
+                          <span className={`flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${estadoClsBadge[h.estado] || 'bg-slate-100 text-slate-500'}`}>
+                            {h.estado}
+                          </span>
+                          {/* Check */}
+                          {seleccionada && (
+                            <svg className="h-4 w-4 flex-shrink-0 text-blue-600" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Resumen de selección */}
+            {habSeleccionada && (
+              <p className="mt-2 text-xs text-blue-600 font-medium">
+                Seleccionada: Hab. {habSeleccionada.numero} — {habSeleccionada.tipo_habitacion} — Piso {habSeleccionada.piso}
+              </p>
+            )}
           </div>
+
+          {/* Tipo */}
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-              Tipo
+              Tipo de tarea
             </label>
             <select
               value={form.tipo}
@@ -209,6 +312,8 @@ const ModalCrear = ({ onClose, onCreada }) => {
               <option value="checkout">Checkout</option>
             </select>
           </div>
+
+          {/* Observaciones */}
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
               Observaciones
@@ -221,11 +326,12 @@ const ModalCrear = ({ onClose, onCreada }) => {
               className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
             />
           </div>
+
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">
               Cancelar
             </button>
-            <button type="submit" disabled={cargando} className="flex-1 rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition">
+            <button type="submit" disabled={cargando || !form.id_habitacion} className="flex-1 rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition">
               {cargando ? 'Creando…' : 'Crear tarea'}
             </button>
           </div>

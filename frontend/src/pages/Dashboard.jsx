@@ -9,6 +9,22 @@ import {
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
+const ICON_PATHS = {
+  calendar:    "M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5",
+  banknotes:   "M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z",
+  users:       "M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z",
+  building:    "M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21",
+  chartBar:    "M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z",
+  trendingUp:  "M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941",
+  moon:        "M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z",
+};
+
+const Icon = ({ name, className = 'h-6 w-6' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className={className}>
+    <path strokeLinecap="round" strokeLinejoin="round" d={ICON_PATHS[name]} />
+  </svg>
+);
+
 const CustomTooltip = ({ active, payload, label, prefix = '', suffix = '' }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -42,7 +58,7 @@ const StatCard = ({ icon, label, value, sub, gradient }) => (
 
 const KpiCard = ({ label, value, description, icon }) => (
   <div className="flex items-start gap-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
-    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-2xl">
+    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
       {icon}
     </div>
     <div>
@@ -176,28 +192,28 @@ const Dashboard = () => {
         {/* Stat cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            icon="📅"
+            icon={<Icon name="calendar" />}
             label="Total Reservas"
             value={estadisticasGenerales?.totalReservas ?? 0}
             sub={getPeriodoLabel()}
             gradient="bg-gradient-to-br from-indigo-500 to-indigo-700"
           />
           <StatCard
-            icon="💰"
+            icon={<Icon name="banknotes" />}
             label="Ingresos"
             value={fmtBs(estadisticasGenerales?.ingresosPeriodo)}
             sub={getPeriodoLabel()}
             gradient="bg-gradient-to-br from-emerald-500 to-emerald-700"
           />
           <StatCard
-            icon="👥"
+            icon={<Icon name="users" />}
             label="Total Clientes"
             value={estadisticasGenerales?.totalClientes ?? 0}
             sub="Activos"
             gradient="bg-gradient-to-br from-violet-500 to-violet-700"
           />
           <StatCard
-            icon="🏨"
+            icon={<Icon name="building" />}
             label="Tasa de Ocupación"
             value={`${Number(estadisticasGenerales?.tasaOcupacion || 0).toFixed(1)}%`}
             sub={`${estadisticasGenerales?.habitacionesOcupadasRango ?? 0}/${estadisticasGenerales?.totalHabitaciones ?? 0} hab.`}
@@ -209,19 +225,19 @@ const Dashboard = () => {
         {estadisticasGenerales && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <KpiCard
-              icon="📊"
+              icon={<Icon name="chartBar" />}
               label="ADR"
               value={fmtBs(estadisticasGenerales.adr)}
               description="Precio promedio por noche"
             />
             <KpiCard
-              icon="📈"
+              icon={<Icon name="trendingUp" />}
               label="RevPAR"
               value={fmtBs(estadisticasGenerales.revpar)}
               description="Ingresos por habitación disponible"
             />
             <KpiCard
-              icon="🌙"
+              icon={<Icon name="moon" />}
               label="Noches promedio"
               value={Number(estadisticasGenerales.nochesPromedio || 0).toFixed(2)}
               description="Duración promedio de estancia"
