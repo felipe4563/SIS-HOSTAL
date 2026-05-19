@@ -13,7 +13,7 @@ export class RedEnlaceService {
       url: isProduction 
         ? 'https://api.enlazateonline.com:4443/app/webservice/webcheckout/rest'
         : 'https://qa-api.enlazateonline.com/app/webservice/webcheckout/rest',
-      url_back: `${process.env.BACKEND_URL}/api/pagos/webhook-red-enlace`,
+      url_back: `${process.env.BACKEND_URL}/pagos/webhook-red-enlace`,
       url_redirect: `${process.env.FRONTEND_URL}/pago-resultado`
     };
   }
