@@ -192,18 +192,18 @@ export const getHabitacionesMasReservadas = async (req, res) => {
     const { inicio, fin } = obtenerRangoFechas(periodo, inicioQuery, finQuery);
 
     const [habitaciones] = await db.query(
-      `SELECT 
+      `SELECT
         h.numero,
         t.nombre as tipo,
         COUNT(r.id_reserva) as total_reservas,
         COALESCE(SUM(r.total), 0) as ingresos_generados
        FROM habitacion h
-       LEFT JOIN reserva r ON h.id_habitacion = r.id_habitacion 
+       LEFT JOIN reserva r ON h.id_habitacion = r.id_habitacion
          AND DATE(r.fecha_creacion) BETWEEN ? AND ?
        LEFT JOIN tipo t ON h.id_tipo = t.id_tipo
        GROUP BY h.id_habitacion, h.numero, t.nombre
-       HAVING total_reservas > 0
-       ORDER BY total_reservas DESC
+       HAVING COUNT(r.id_reserva) > 0
+       ORDER BY COUNT(r.id_reserva) DESC
        LIMIT 10`,
       [inicio, fin]
     );
@@ -268,19 +268,19 @@ export const getClientesFrecuentes = async (req, res) => {
     const { inicio, fin } = obtenerRangoFechas(periodo, inicioQuery, finQuery);
 
     const [clientes] = await db.query(
-      `SELECT 
+      `SELECT
         c.nombre,
         c.apellido,
         c.correo,
         COUNT(r.id_reserva) as total_reservas,
         COALESCE(SUM(r.total), 0) as gasto_total
        FROM cliente c
-       LEFT JOIN reserva r ON c.id_cliente = r.id_cliente 
+       LEFT JOIN reserva r ON c.id_cliente = r.id_cliente
          AND DATE(r.fecha_creacion) BETWEEN ? AND ?
        WHERE c.estado = 1
        GROUP BY c.id_cliente, c.nombre, c.apellido, c.correo
-       HAVING total_reservas > 0
-       ORDER BY total_reservas DESC
+       HAVING COUNT(r.id_reserva) > 0
+       ORDER BY COUNT(r.id_reserva) DESC
        LIMIT 10`,
       [inicio, fin]
     );
@@ -460,18 +460,18 @@ export const getDashboardOverview = async (req, res) => {
         );
       })(),
       connection.query(
-        `SELECT 
+        `SELECT
           h.numero,
           t.nombre as tipo,
           COUNT(r.id_reserva) as total_reservas,
           COALESCE(SUM(r.total), 0) as ingresos_generados
          FROM habitacion h
-         LEFT JOIN reserva r ON h.id_habitacion = r.id_habitacion 
+         LEFT JOIN reserva r ON h.id_habitacion = r.id_habitacion
            AND DATE(r.fecha_creacion) BETWEEN ? AND ?
          LEFT JOIN tipo t ON h.id_tipo = t.id_tipo
          GROUP BY h.id_habitacion, h.numero, t.nombre
-         HAVING total_reservas > 0
-         ORDER BY total_reservas DESC
+         HAVING COUNT(r.id_reserva) > 0
+         ORDER BY COUNT(r.id_reserva) DESC
          LIMIT 10`,
         [inicio, fin]
       ),
@@ -491,19 +491,19 @@ export const getDashboardOverview = async (req, res) => {
          GROUP BY estado`
       ),
       connection.query(
-        `SELECT 
+        `SELECT
           c.nombre,
           c.apellido,
           c.correo,
           COUNT(r.id_reserva) as total_reservas,
           COALESCE(SUM(r.total), 0) as gasto_total
          FROM cliente c
-         LEFT JOIN reserva r ON c.id_cliente = r.id_cliente 
+         LEFT JOIN reserva r ON c.id_cliente = r.id_cliente
            AND DATE(r.fecha_creacion) BETWEEN ? AND ?
          WHERE c.estado = 1
          GROUP BY c.id_cliente, c.nombre, c.apellido, c.correo
-         HAVING total_reservas > 0
-         ORDER BY total_reservas DESC
+         HAVING COUNT(r.id_reserva) > 0
+         ORDER BY COUNT(r.id_reserva) DESC
          LIMIT 10`,
         [inicio, fin]
       ),
