@@ -47,7 +47,6 @@ export default defineConfig({
           'vendor-react':  ['react', 'react-dom', 'react-router-dom'],
           'vendor-ui':     ['react-hot-toast', '@casl/ability', '@casl/react'],
           'vendor-pdf':    ['html2canvas', 'jspdf'],
-          'vendor-three':  ['three', '@react-three/fiber', '@react-three/drei'],
         },
       },
     },
