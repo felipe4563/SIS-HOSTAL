@@ -39,7 +39,7 @@ const HabitacionCard = ({ habitacion, onReservar }) => {
   const construirUrlImagen = (ruta) => {
     if (!ruta) return 'https://placehold.co/400x300?text=Sin+Imagen';
     if (ruta.startsWith('http://') || ruta.startsWith('https://')) return ruta;
-    return `${API_BASE_URL}/api/uploads/${ruta}`;
+    return `${API_BASE_URL}/uploads/${ruta}`;
   };
 
   const imagenesNormales = habitacion.imagenes?.filter(img => img.tipo_imagen === 'normal') || [];
