@@ -147,23 +147,20 @@ export const getReservasPorPeriodo = async (req, res) => {
     const { inicio, fin, periodo: periodoResuelto } = obtenerRangoFechas(periodo, inicioQuery, finQuery);
     
     let formatoFecha, groupBy;
-    
+
     switch(periodoResuelto) {
       case 'semana':
-        formatoFecha = '%Y-%m-%d'; // Por día
-        groupBy = 'DATE(fecha_creacion)';
-        break;
       case 'mes':
-        formatoFecha = '%Y-%m-%d'; // Por día del mes
-        groupBy = 'DATE(fecha_creacion)';
+        formatoFecha = '%Y-%m-%d';
+        groupBy = "DATE_FORMAT(fecha_creacion, '%Y-%m-%d')";
         break;
       case 'año':
-        formatoFecha = '%Y-%m'; // Por mes del año
-        groupBy = 'DATE_FORMAT(fecha_creacion, "%Y-%m")';
+        formatoFecha = '%Y-%m';
+        groupBy = "DATE_FORMAT(fecha_creacion, '%Y-%m')";
         break;
       default:
         formatoFecha = '%Y-%m-%d';
-        groupBy = 'DATE(fecha_creacion)';
+        groupBy = "DATE_FORMAT(fecha_creacion, '%Y-%m-%d')";
     }
 
     const [reservas] = await db.query(
@@ -317,20 +314,20 @@ export const getIngresosPorPeriodo = async (req, res) => {
     const { inicio, fin, periodo: periodoResuelto } = obtenerRangoFechas(periodo, inicioQuery, finQuery);
 
     let formatoFecha, groupBy;
-    
+
     switch(periodoResuelto) {
       case 'semana':
       case 'mes':
         formatoFecha = '%Y-%m-%d';
-        groupBy = 'DATE(fecha_pago)';
+        groupBy = "DATE_FORMAT(fecha_pago, '%Y-%m-%d')";
         break;
       case 'año':
         formatoFecha = '%Y-%m';
-        groupBy = 'DATE_FORMAT(fecha_pago, "%Y-%m")';
+        groupBy = "DATE_FORMAT(fecha_pago, '%Y-%m')";
         break;
       default:
         formatoFecha = '%Y-%m-%d';
-        groupBy = 'DATE(fecha_pago)';
+        groupBy = "DATE_FORMAT(fecha_pago, '%Y-%m-%d')";
     }
 
     const [ingresos] = await db.query(
@@ -411,13 +408,13 @@ export const getDashboardOverview = async (req, res) => {
         switch (periodoResuelto) {
           case 'año':
             formatoFecha = '%Y-%m';
-            groupBy = 'DATE_FORMAT(fecha_creacion, "%Y-%m")';
+            groupBy = "DATE_FORMAT(fecha_creacion, '%Y-%m')";
             break;
           case 'semana':
           case 'mes':
           default:
             formatoFecha = '%Y-%m-%d';
-            groupBy = 'DATE(fecha_creacion)';
+            groupBy = "DATE_FORMAT(fecha_creacion, '%Y-%m-%d')";
         }
 
         return connection.query(
@@ -439,13 +436,13 @@ export const getDashboardOverview = async (req, res) => {
         switch (periodoResuelto) {
           case 'año':
             formatoFecha = '%Y-%m';
-            groupBy = 'DATE_FORMAT(fecha_pago, "%Y-%m")';
+            groupBy = "DATE_FORMAT(fecha_pago, '%Y-%m')";
             break;
           case 'semana':
           case 'mes':
           default:
             formatoFecha = '%Y-%m-%d';
-            groupBy = 'DATE(fecha_pago)';
+            groupBy = "DATE_FORMAT(fecha_pago, '%Y-%m-%d')";
         }
 
         return connection.query(
