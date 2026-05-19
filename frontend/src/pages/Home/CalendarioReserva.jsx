@@ -74,8 +74,19 @@ const CalendarioReserva = ({
     return fecha < hoy;
   };
 
+  const fechaMaximaPermitida = (() => {
+    const max = new Date();
+    max.setMonth(max.getMonth() + 1);
+    max.setHours(23, 59, 59, 999);
+    return max;
+  })();
+
+  const esFechaFueraDeRango = (fecha) => {
+    return fecha > fechaMaximaPermitida;
+  };
+
   const esFechaDeshabilitada = (fecha) => {
-    return esFechaPasada(fecha) || esFechaOcupada(fecha);
+    return esFechaPasada(fecha) || esFechaOcupada(fecha) || esFechaFueraDeRango(fecha);
   };
 
   const handleClickDia = (fecha) => {
@@ -127,8 +138,8 @@ const CalendarioReserva = ({
       return clases.join(' ');
     }
     
-    // Fecha pasada
-    if (esFechaPasada(date)) {
+    // Fecha pasada o fuera del rango de 1 mes
+    if (esFechaPasada(date) || esFechaFueraDeRango(date)) {
       clases.push('bg-gray-100 text-gray-400 cursor-not-allowed');
       return clases.join(' ');
     }
@@ -224,6 +235,7 @@ const CalendarioReserva = ({
               {esMultiple
                 ? 'están bloqueados por al menos una habitación del carrito'
                 : 'ya están reservados'}
+              . Solo puedes reservar dentro del próximo mes.
             </p>
           </div>
         </div>
@@ -288,10 +300,11 @@ const CalendarioReserva = ({
           tileContent={getTileContent}
           tileDisabled={({ date }) => esFechaDeshabilitada(date)}
           minDetail="month"
+          maxDate={fechaMaximaPermitida}
           showNeighboringMonth={false}
           prev2Label={null}
           next2Label={null}
-          formatShortWeekday={(locale, date) => 
+          formatShortWeekday={(locale, date) =>
             ['D', 'L', 'M', 'X', 'J', 'V', 'S'][date.getDay()]
           }
         />

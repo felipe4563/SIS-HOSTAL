@@ -18,8 +18,12 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
+  const capacidad = habitacion.tipo.capacidad;
   const [cantidadAdultos, setCantidadAdultos] = useState(1);
   const [cantidadNinos, setCantidadNinos] = useState(0);
+
+  const maxAdultos = capacidad;
+  const maxNinos = Math.max(0, capacidad - cantidadAdultos);
   const [horaLlegada, setHoraLlegada] = useState('');
 
   // 🎯 Estados para pricing dinámico
@@ -300,7 +304,11 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
                   Cantidad de huéspedes
                 </h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Capacidad máxima: <strong>{capacidad} {capacidad === 1 ? 'persona' : 'personas'}</strong> (adultos + niños)
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-semibold text-gray-700 mb-2 block">
                       Adultos
@@ -308,11 +316,16 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
                     <div className="relative">
                       <select
                         value={cantidadAdultos}
-                        onChange={(e) => setCantidadAdultos(Number(e.target.value))}
+                        onChange={(e) => {
+                          const nuevosAdultos = Number(e.target.value);
+                          setCantidadAdultos(nuevosAdultos);
+                          const nuevosMaxNinos = Math.max(0, capacidad - nuevosAdultos);
+                          if (cantidadNinos > nuevosMaxNinos) setCantidadNinos(nuevosMaxNinos);
+                        }}
                         required
                         className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all appearance-none font-semibold cursor-pointer bg-white"
                       >
-                        {[1, 2, 3, 4, 5, 6].map(num => (
+                        {Array.from({ length: maxAdultos }, (_, i) => i + 1).map(num => (
                           <option key={num} value={num}>{num} {num === 1 ? 'adulto' : 'adultos'}</option>
                         ))}
                       </select>
@@ -332,7 +345,7 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
                         onChange={(e) => setCantidadNinos(Number(e.target.value))}
                         className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all appearance-none font-semibold cursor-pointer bg-white"
                       >
-                        {[0, 1, 2, 3, 4, 5].map(num => (
+                        {Array.from({ length: maxNinos + 1 }, (_, i) => i).map(num => (
                           <option key={num} value={num}>{num} {num === 1 ? 'niño' : 'niños'}</option>
                         ))}
                       </select>
@@ -448,69 +461,17 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
                   </svg>
                 </button>
 
-                {/* 📊 Detalles de ajustes (expandible) */}
+                {/* 📊 Detalles de ajuste de temporada (expandible) */}
                 {mostrarDetalles && (
                   <div className="mt-3 pt-3 border-t border-blue-200 space-y-2 bg-white/50 rounded-xl p-3">
-                    <p className="text-xs font-bold text-gray-600 mb-2">AJUSTES APLICADOS:</p>
-                    
-                    {precioDinamico.ajustes.temporada !== 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">• Temporada</span>
-                        <span className={`font-semibold ${getAjusteColor(precioDinamico.ajustes.temporada)}`}>
-                          {precioDinamico.ajustes.temporada > 0 ? '+' : ''}{precioDinamico.ajustes.temporada}%
-                        </span>
-                      </div>
-                    )}
-                    
-                    {precioDinamico.ajustes.dia_semana !== 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">• Día de la semana</span>
-                        <span className={`font-semibold ${getAjusteColor(precioDinamico.ajustes.dia_semana)}`}>
-                          {precioDinamico.ajustes.dia_semana > 0 ? '+' : ''}{precioDinamico.ajustes.dia_semana}%
-                        </span>
-                      </div>
-                    )}
-                    
-                    {precioDinamico.ajustes.anticipacion !== 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">• Anticipación ({precioDinamico.dias_anticipacion} días)</span>
-                        <span className={`font-semibold ${getAjusteColor(precioDinamico.ajustes.anticipacion)}`}>
-                          {precioDinamico.ajustes.anticipacion > 0 ? '+' : ''}{precioDinamico.ajustes.anticipacion}%
-                        </span>
-                      </div>
-                    )}
-                    
-                    {precioDinamico.ajustes.ocupacion !== 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">• Ocupación ({precioDinamico.ocupacion_actual}%)</span>
-                        <span className={`font-semibold ${getAjusteColor(precioDinamico.ajustes.ocupacion)}`}>
-                          {precioDinamico.ajustes.ocupacion > 0 ? '+' : ''}{precioDinamico.ajustes.ocupacion}%
-                        </span>
-                      </div>
-                    )}
-                    
-                    {precioDinamico.ajustes.duracion !== 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">• Duración de estadía</span>
-                        <span className={`font-semibold ${getAjusteColor(precioDinamico.ajustes.duracion)}`}>
-                          {precioDinamico.ajustes.duracion > 0 ? '+' : ''}{precioDinamico.ajustes.duracion}%
-                        </span>
-                      </div>
-                    )}
-                    
-                    {precioDinamico.ajustes.eventos !== 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">• Eventos especiales</span>
-                        <span className={`font-semibold ${getAjusteColor(precioDinamico.ajustes.eventos)}`}>
-                          {precioDinamico.ajustes.eventos > 0 ? '+' : ''}{precioDinamico.ajustes.eventos}%
-                        </span>
-                      </div>
-                    )}
+                    <p className="text-xs font-bold text-gray-600 mb-2">AJUSTE APLICADO:</p>
 
-                    <div className="flex justify-between text-sm pt-2 border-t border-gray-300">
-                      <span className="font-bold text-gray-700">Ajuste total</span>
-                      <span className={`font-bold ${getAjusteColor(precioDinamico.ajustes.total)}`}>
-                        {precioDinamico.ajustes.total > 0 ? '+' : ''}{precioDinamico.ajustes.total}%
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">
+                        • {precioDinamico.ajustes.temporada > 0 ? 'Temporada alta' : 'Temporada normal'}
+                      </span>
+                      <span className={`font-semibold ${getAjusteColor(precioDinamico.ajustes.temporada)}`}>
+                        {precioDinamico.ajustes.temporada > 0 ? '+' : ''}{precioDinamico.ajustes.temporada}%
                       </span>
                     </div>
                   </div>

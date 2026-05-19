@@ -17,6 +17,13 @@ const ModalCarrito = ({ onClose }) => {
   const [fechaSalida, setFechaSalida] = useState('');
   const [cantidadAdultos, setCantidadAdultos] = useState(1);
   const [cantidadNinos, setCantidadNinos] = useState(0);
+
+  // Capacidad total sumando la de todas las habitaciones del carrito
+  const capacidadTotal = habitaciones.length > 0
+    ? habitaciones.reduce((sum, h) => sum + (h.tipo?.capacidad || 6), 0)
+    : 6;
+  const maxAdultos = capacidadTotal;
+  const maxNinos = Math.max(0, capacidadTotal - cantidadAdultos);
   const [horaLlegada, setHoraLlegada] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -269,17 +276,29 @@ const ModalCarrito = ({ onClose }) => {
                   </svg>
                   Cantidad de huéspedes
                 </h3>
+
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Capacidad total entre todas las habitaciones: <strong>{capacidadTotal} {capacidadTotal === 1 ? 'persona' : 'personas'}</strong> (adultos + niños)
+                </p>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-sm font-semibold text-gray-700 mb-2 block">Adultos</label>
                     <div className="relative">
                       <select
                         value={cantidadAdultos}
-                        onChange={(e) => setCantidadAdultos(Number(e.target.value))}
+                        onChange={(e) => {
+                          const nuevosAdultos = Number(e.target.value);
+                          setCantidadAdultos(nuevosAdultos);
+                          const nuevosMaxNinos = Math.max(0, capacidadTotal - nuevosAdultos);
+                          if (cantidadNinos > nuevosMaxNinos) setCantidadNinos(nuevosMaxNinos);
+                        }}
                         required
                         className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all appearance-none font-semibold bg-white cursor-pointer"
                       >
-                        {[1,2,3,4,5,6].map((n) => <option key={n} value={n}>{n} {n === 1 ? 'adulto' : 'adultos'}</option>)}
+                        {Array.from({ length: maxAdultos }, (_, i) => i + 1).map((n) => (
+                          <option key={n} value={n}>{n} {n === 1 ? 'adulto' : 'adultos'}</option>
+                        ))}
                       </select>
                       <svg className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -294,7 +313,9 @@ const ModalCarrito = ({ onClose }) => {
                         onChange={(e) => setCantidadNinos(Number(e.target.value))}
                         className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all appearance-none font-semibold bg-white cursor-pointer"
                       >
-                        {[0,1,2,3,4,5].map((n) => <option key={n} value={n}>{n} {n === 1 ? 'niño' : 'niños'}</option>)}
+                        {Array.from({ length: maxNinos + 1 }, (_, i) => i).map((n) => (
+                          <option key={n} value={n}>{n} {n === 1 ? 'niño' : 'niños'}</option>
+                        ))}
                       </select>
                       <svg className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -444,33 +465,16 @@ const ModalCarrito = ({ onClose }) => {
                       </div>
                     </div>
 
-                    {/* Detalles de ajustes expandibles */}
+                    {/* Detalle de ajuste de temporada */}
                     {mostrarDetalles && precio && (
                       <div className="mt-3 pt-3 border-t border-gray-200 bg-white/60 rounded-xl p-3 space-y-1.5">
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Ajustes aplicados</p>
-                        {Object.entries(precio.ajustes).map(([key, value]) => {
-                          if (key === 'total' || value === 0) return null;
-                          const labels = {
-                            temporada: 'Temporada',
-                            dia_semana: 'Día de semana',
-                            anticipacion: `Anticipación (${precio.dias_anticipacion} días)`,
-                            ocupacion: `Ocupación (${precio.ocupacion_actual}%)`,
-                            duracion: 'Duración de estadía',
-                            eventos: 'Eventos especiales',
-                          };
-                          return (
-                            <div key={key} className="flex justify-between text-sm">
-                              <span className="text-gray-600">• {labels[key]}</span>
-                              <span className={`font-semibold ${getAjusteColor(value)}`}>
-                                {value > 0 ? '+' : ''}{value}%
-                              </span>
-                            </div>
-                          );
-                        })}
-                        <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
-                          <span className="font-bold text-gray-700">Ajuste total</span>
-                          <span className={`font-bold ${getAjusteColor(precio.ajustes.total)}`}>
-                            {precio.ajustes.total > 0 ? '+' : ''}{precio.ajustes.total}%
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Ajuste aplicado</p>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">
+                            • {precio.ajustes.temporada > 0 ? 'Temporada alta' : 'Temporada normal'}
+                          </span>
+                          <span className={`font-semibold ${getAjusteColor(precio.ajustes.temporada)}`}>
+                            {precio.ajustes.temporada > 0 ? '+' : ''}{precio.ajustes.temporada}%
                           </span>
                         </div>
                       </div>

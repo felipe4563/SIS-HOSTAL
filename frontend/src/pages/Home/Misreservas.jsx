@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext.jsx';
 import { obtenerMisReservas, cancelarReserva } from '../../services/reserva.js';
+import { iniciarPago } from '../../services/pago.js';
 
 const MisReservas = () => {
   const { usuario } = useContext(AuthContext);
@@ -9,6 +10,7 @@ const MisReservas = () => {
   const [reservas, setReservas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [procesandoPago, setProcesandoPago] = useState(null);
 
   useEffect(() => {
     if (!usuario || usuario.tipo !== 'cliente') {
@@ -29,6 +31,27 @@ const MisReservas = () => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleContinuarPago = async (id_reserva) => {
+    setProcesandoPago(id_reserva);
+    try {
+      const resultado = await iniciarPago(id_reserva);
+      if (resultado.success && resultado.paymentUrl) {
+        sessionStorage.setItem('pago_pendiente', JSON.stringify({
+          id_reserva,
+          id_pago: resultado.id_pago,
+          timestamp: Date.now(),
+        }));
+        window.location.href = resultado.paymentUrl;
+      } else {
+        alert('No se pudo generar el enlace de pago. Intenta de nuevo.');
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error al iniciar el pago');
+    } finally {
+      setProcesandoPago(null);
     }
   };
 
@@ -229,7 +252,7 @@ const MisReservas = () => {
                             <div className="w-full sm:w-auto text-sm text-slate-500">
                               {reserva.estado === 'pendiente' && (
                                 <p className="flex items-center gap-2 text-amber-600 bg-amber-50 px-4 py-2 rounded-xl font-medium">
-                                  <span>💳</span> Esperando pago en recepción
+                                  <span>💳</span> Pago pendiente
                                 </p>
                               )}
                               {reserva.estado === 'confirmada' && (
@@ -245,6 +268,30 @@ const MisReservas = () => {
                             </div>
 
                             <div className="w-full sm:w-auto flex gap-3">
+                              {reserva.estado === 'pendiente' && (
+                                <button
+                                  onClick={() => handleContinuarPago(reserva.id_reserva)}
+                                  disabled={procesandoPago === reserva.id_reserva}
+                                  className="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all duration-300 text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                                >
+                                  {procesandoPago === reserva.id_reserva ? (
+                                    <>
+                                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                      </svg>
+                                      Generando enlace...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                      </svg>
+                                      Continuar Pago
+                                    </>
+                                  )}
+                                </button>
+                              )}
                               {(reserva.estado === 'pendiente' || reserva.estado === 'confirmada') && (
                                 <button
                                   onClick={() => handleCancelarReserva(reserva.id_reserva)}

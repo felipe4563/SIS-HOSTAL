@@ -6,7 +6,7 @@ const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000';
 const buildSrc = (ruta) => {
   if (!ruta) return '';
   if (ruta.startsWith('http://') || ruta.startsWith('https://')) return ruta;
-  return `${API_BASE_URL}/uploads/${ruta}`;
+  return `${API_BASE_URL}/api/uploads/${ruta}`;
 };
 
 const TourVirtual360 = ({ imagenes360 = [], nombreHabitacion = 'Habitación', onClose }) => {
