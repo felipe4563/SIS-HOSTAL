@@ -42,46 +42,30 @@ const TourVirtual360 = ({ imagenes360 = [], nombreHabitacion = 'Habitación', on
   return (
     <div className="fixed inset-0 z-[200] flex flex-col bg-[#0a0a0f]">
 
-      {/* ── HEADER ── */}
-      <div className="relative z-10 flex items-center justify-between gap-4 border-b border-white/10 bg-black/60 px-4 py-3 backdrop-blur-md sm:px-6">
-        <div className="flex min-w-0 items-center gap-3">
-          {/* Ícono animado */}
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 shadow-lg shadow-blue-900/40">
-            <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-                d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
-            </svg>
-          </div>
+      {/* Botón Regresar — fixed para sobrevivir el stacking context del visor 360 */}
+      <button
+        onClick={onClose}
+        style={{ position: 'fixed', top: 16, left: 16, zIndex: 99999 }}
+        className="flex items-center gap-2 rounded-xl border border-white/20 bg-black/80 px-4 py-3 text-white shadow-2xl backdrop-blur-md transition-all hover:bg-white/20 active:scale-95"
+        aria-label="Regresar"
+      >
+        <svg className="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        <span className="text-sm font-bold">Regresar</span>
+      </button>
 
-          <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-white sm:text-base">
-              Tour Virtual 360°
-            </p>
-            <p className="truncate text-xs text-blue-300/80">{nombreHabitacion}</p>
-          </div>
+      {/* ── HEADER ── (título + contador) */}
+      <div className="relative z-10 flex items-center justify-end gap-3 border-b border-white/10 bg-black/70 px-3 py-2 backdrop-blur-md sm:px-6 sm:py-3">
+        <div className="mr-auto pl-32 min-w-0">
+          <p className="truncate text-sm font-bold text-white">Tour Virtual 360°</p>
+          <p className="truncate text-xs text-blue-300/80">{nombreHabitacion}</p>
         </div>
-
-        <div className="flex flex-shrink-0 items-center gap-2">
-          {/* Contador de vistas */}
-          {total > 1 && (
-            <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-white/70">
-              {imagenActual + 1} / {total}
-            </span>
-          )}
-
-          {/* Botón cerrar */}
-          <button
-            onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/70 transition-all hover:border-red-500/40 hover:bg-red-500/15 hover:text-red-400"
-            aria-label="Cerrar tour"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+        {total > 1 && (
+          <span className="flex-shrink-0 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-white/70">
+            {imagenActual + 1} / {total}
+          </span>
+        )}
       </div>
 
       {/* ── VISOR 360° ── */}
