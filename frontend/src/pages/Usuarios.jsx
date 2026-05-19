@@ -1,5 +1,5 @@
 import { useState, useContext } from "react";
-import UsuarioLista from "../pages/usuarios/usuarioslista.jsx";
+import UsuarioLista from "../pages/usuarios/UsuariosLista.jsx";
 import UsuarioForm from "../pages/usuarios/UsuariosForm.jsx";
 import { AuthContext } from "../context/AuthContext";
 
