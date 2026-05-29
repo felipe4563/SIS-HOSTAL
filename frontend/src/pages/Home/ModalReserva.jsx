@@ -127,7 +127,7 @@ const ModalReserva = ({ habitacion, onClose, onSuccess }) => {
       }));
       
       alert('Debes iniciar sesión para completar la reserva');
-      navigate('/login-cliente');
+      navigate('/login');
       return;
     }
 

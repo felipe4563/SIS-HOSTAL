@@ -132,7 +132,7 @@ const ModalCarrito = ({ onClose }) => {
     if (!usuario) {
       sessionStorage.setItem('carritoGuardado', JSON.stringify({ fechaEntrada, fechaSalida }));
       alert('Debes iniciar sesión para completar la reserva');
-      navigate('/login-cliente');
+      navigate('/login');
       return;
     }
 

@@ -186,7 +186,7 @@ function Home() {
 
             {!usuario && (
               <Link
-                to="/login-cliente"
+                to="/login"
                 className="rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:shadow-lg hover:-translate-y-0.5"
               >
                 Iniciar Sesión
@@ -242,7 +242,7 @@ function Home() {
               )}
 
               {!usuario && (
-                <Link to="/login-cliente" className="rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 text-center text-sm font-semibold text-white" onClick={cerrarMenus}>
+                <Link to="/login" className="rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 text-center text-sm font-semibold text-white" onClick={cerrarMenus}>
                   Iniciar Sesión
                 </Link>
               )}

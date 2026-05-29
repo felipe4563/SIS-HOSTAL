@@ -6,7 +6,6 @@ import { Toaster } from "react-hot-toast";
 // 🏠 PÁGINAS PÚBLICAS
 import Home from "./pages/home";
 import Login from "./pages/Login";
-import LoginCliente from "./pages/LoginCliente";
 // 👤 PÁGINAS DE CLIENTE
 import MisReservas from "./pages/Home/Misreservas";
 import MiPerfil from "./pages/Home/Miperfil";
@@ -40,17 +39,13 @@ function App() {
         {/* 🏠 PÁGINA PRINCIPAL PÚBLICA */}
       <Route path="/" element={<Home />} />
 
-      {/* 🔑 LOGIN PARA CLIENTES (Huéspedes) */}
-      <Route
-        path="/login-cliente"
-        element={!usuario ? <LoginCliente /> : <Navigate to="/" replace />}
-      />
-
-      {/* 🔑 LOGIN PARA PERSONAL DEL SISTEMA */}
+      {/* 🔑 LOGIN UNIFICADO (huéspedes y personal) */}
       <Route
         path="/login"
-        element={!esUsuarioSistema ? <Login /> : <Navigate to="/sistema" replace />}
+        element={!usuario ? <Login /> : <Navigate to={esUsuarioSistema ? "/sistema" : "/"} replace />}
       />
+      {/* Alias para compatibilidad con links existentes */}
+      <Route path="/login-cliente" element={<Navigate to="/login" replace />} />
 
       {/* 👤 PÁGINAS DE CLIENTE (solo accesibles si está logueado como cliente) */}
       <Route
@@ -59,7 +54,7 @@ function App() {
           esCliente ? (
             <MisReservas />
           ) : (
-            <Navigate to="/login-cliente" replace />
+            <Navigate to="/login" replace />
           )
         }
       />
@@ -70,7 +65,7 @@ function App() {
           esCliente ? (
             <MiPerfil />
           ) : (
-            <Navigate to="/login-cliente" replace />
+            <Navigate to="/login" replace />
           )
         }
       />
