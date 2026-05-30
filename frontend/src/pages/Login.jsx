@@ -6,21 +6,16 @@ import { GoogleLogin } from '@react-oauth/google';
 import api from '../services/api.js';
 
 const Login = () => {
-  const { login } = useContext(AuthContext);
-  const navigate = useNavigate();
+  const { login }  = useContext(AuthContext);
+  const navigate   = useNavigate();
 
-  // Sección activa: 'huesped' | 'personal'
-  const [seccion, setSeccion] = useState('huesped');
-
-  // Estado personal
   const [identificador, setIdentificador] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [password,      setPassword]      = useState('');
+  const [showPassword,  setShowPassword]  = useState(false);
+  const [error,         setError]         = useState('');
+  const [isLoading,     setIsLoading]     = useState(false);
 
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  // ── LOGIN GOOGLE (huésped) ──────────────────────────────────────
+  /* ── Google (huésped) ─────────────────────────────────── */
   const handleGoogleLogin = async (credentialResponse) => {
     setIsLoading(true);
     setError('');
@@ -30,7 +25,7 @@ const Login = () => {
       });
       login(response.data);
       const reservaPendiente = sessionStorage.getItem('reservaPendiente');
-      navigate(reservaPendiente ? '/' : '/', { state: reservaPendiente ? { completarReserva: true } : undefined });
+      navigate('/', { state: reservaPendiente ? { completarReserva: true } : undefined });
     } catch (err) {
       setError(err.response?.data?.message || 'Error al iniciar sesión con Google');
     } finally {
@@ -38,7 +33,7 @@ const Login = () => {
     }
   };
 
-  // ── LOGIN PERSONAL DEL SISTEMA ──────────────────────────────────
+  /* ── Personal del sistema ─────────────────────────────── */
   const handlePersonalSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -77,35 +72,11 @@ const Login = () => {
             <p className="text-blue-200 text-sm mt-1">Bienvenido, inicia sesión para continuar</p>
           </div>
 
-          {/* Pestañas */}
-          <div className="flex border-b border-gray-200">
-            <button
-              onClick={() => { setSeccion('huesped'); setError(''); }}
-              className={`flex-1 py-3 text-sm font-bold transition-all ${
-                seccion === 'huesped'
-                  ? 'text-blue-700 border-b-2 border-blue-600 bg-blue-50/60'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <span className="mr-1.5">🛎️</span> Soy huésped
-            </button>
-            <button
-              onClick={() => { setSeccion('personal'); setError(''); }}
-              className={`flex-1 py-3 text-sm font-bold transition-all ${
-                seccion === 'personal'
-                  ? 'text-blue-700 border-b-2 border-blue-600 bg-blue-50/60'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <span className="mr-1.5">🔒</span> Soy del personal
-            </button>
-          </div>
-
-          <div className="px-8 py-8">
+          <div className="px-8 py-8 space-y-6">
 
             {/* Error */}
             {error && (
-              <div className="mb-5 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
                 <svg className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -113,96 +84,89 @@ const Login = () => {
               </div>
             )}
 
-            {/* ── SECCIÓN HUÉSPED ── */}
-            {seccion === 'huesped' && (
-              <div>
-                <p className="text-center text-gray-600 text-sm mb-6">
-                  Usa tu cuenta de Google para reservar y gestionar tus estadías.
-                </p>
-                <div className="flex justify-center mb-6">
-                  {isLoading ? (
-                    <div className="flex items-center gap-2 py-4">
-                      <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                      <span className="text-gray-600 text-sm">Iniciando sesión...</span>
-                    </div>
-                  ) : (
-                    <GoogleLogin
-                      onSuccess={handleGoogleLogin}
-                      onError={() => setError('Error al iniciar sesión con Google')}
-                      useOneTap
-                      text="continue_with"
-                      locale="es"
-                    />
-                  )}
-                </div>
-                <p className="text-center text-xs text-gray-400">
-                  ¿No tienes cuenta? Se creará automáticamente al ingresar con Google.
-                </p>
-              </div>
-            )}
-
-            {/* ── SECCIÓN PERSONAL ── */}
-            {seccion === 'personal' && (
-              <form onSubmit={handlePersonalSubmit} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                    CI o Correo Electrónico
-                  </label>
-                  <input
-                    type="text"
-                    value={identificador}
-                    onChange={(e) => setIdentificador(e.target.value)}
-                    required
-                    placeholder="ejemplo@hostal.com"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                    Contraseña
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      placeholder="Ingrese su contraseña"
-                      className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
-                    >
-                      {showPassword ? '🙈' : '👁️'}
-                    </button>
+            {/* ── Google (huéspedes) ── */}
+            <div>
+              <div className="flex justify-center">
+                {isLoading ? (
+                  <div className="flex items-center gap-2 py-3">
+                    <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-gray-600 text-sm">Iniciando sesión...</span>
                   </div>
+                ) : (
+                  <GoogleLogin
+                    onSuccess={handleGoogleLogin}
+                    onError={() => setError('Error al iniciar sesión con Google')}
+                    useOneTap
+                    text="continue_with"
+                    locale="es"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Divisor */}
+      
+
+            {/* ── Formulario personal ── */}
+            <form onSubmit={handlePersonalSubmit} className="space-y-5">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  CI o Correo Electrónico
+                </label>
+                <input
+                  type="text"
+                  value={identificador}
+                  onChange={(e) => setIdentificador(e.target.value)}
+                  required
+                  placeholder="ejemplo@hostal.com"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  Contraseña
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    placeholder="Ingrese su contraseña"
+                    className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(v => !v)}
+                    className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
+                  >
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
                 </div>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-800 text-white py-3 rounded-xl font-bold hover:from-blue-700 hover:to-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.01] active:scale-[0.99]"
-                >
-                  {isLoading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Iniciando sesión...
-                    </span>
-                  ) : (
-                    'Ingresar al Sistema'
-                  )}
-                </button>
-              </form>
-            )}
+              </div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-800 text-white py-3 rounded-xl font-bold hover:from-blue-700 hover:to-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.01] active:scale-[0.99]"
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Iniciando sesión...
+                  </span>
+                ) : (
+                  'Iniciar sesión'
+                )}
+              </button>
+            </form>
 
             {/* Volver al inicio */}
             <button
               onClick={() => navigate('/')}
-              className="mt-5 w-full border-2 border-gray-200 text-gray-600 py-2.5 rounded-xl font-semibold hover:bg-gray-50 hover:border-gray-300 transition-all text-sm"
+              className="w-full border-2 border-gray-200 text-gray-600 py-2.5 rounded-xl font-semibold hover:bg-gray-50 hover:border-gray-300 transition-all text-sm"
             >
               ← Volver al inicio
             </button>
