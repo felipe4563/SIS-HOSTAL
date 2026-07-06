@@ -81,6 +81,32 @@ export const upload360 = multer({
   }
 });
 
+// ============================
+// CONFIGURACIÓN PARA FOTOS TEMPORALES (captura 360°)
+// ============================
+const storageTemp = multer.diskStorage({
+  destination: (req, file, cb) => {
+    if (!req.tempFolderPath) {
+      req.tempFolderPath = `uploads/temp/${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    }
+    if (!fs.existsSync(req.tempFolderPath)) {
+      fs.mkdirSync(req.tempFolderPath, { recursive: true });
+    }
+    cb(null, req.tempFolderPath);
+  },
+  filename: (req, file, cb) => {
+    const idx = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, `foto-${idx}.jpg`);
+  }
+});
+
+// Hasta 30 fotos, 8 MB cada una
+export const uploadTemp = multer({
+  storage: storageTemp,
+  fileFilter: fileFilter,
+  limits: { fileSize: 8 * 1024 * 1024, files: 30 }
+});
+
 // Middleware para manejar errores de multer
 export const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {

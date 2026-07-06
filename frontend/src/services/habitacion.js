@@ -153,3 +153,22 @@ export const eliminarImagen360 = async (idHabitacion, idImagen) => {
   );
   return data;
 };
+
+export const capturaFotos360 = async (idHabitacion, fotosBlob, titulo = 'Vista 360°', descripcion = '') => {
+  const formData = new FormData();
+  fotosBlob.forEach((blob, i) => {
+    formData.append('fotos[]', blob, `foto-${i}.jpg`);
+  });
+  formData.append('titulo', titulo);
+  formData.append('descripcion', descripcion);
+
+  const { data } = await api.post(
+    `/habitaciones/${idHabitacion}/capturar-360`,
+    formData,
+    {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000
+    }
+  );
+  return data;
+};

@@ -9,18 +9,18 @@ import {
   editarHabitacion,
   eliminarHabitacion,
   cambiarEstadoHabitacion,
-  // Nuevas funciones para imágenes 360°
   subirImagenes360,
   listarImagenes360,
   eliminarImagen360,
   actualizarImagen360,
+  capturarFotos360,
   getHabitacionesPublicas,
   getHabitacionDetalle,
   verificarDisponibilidad,
   getTiposHabitacion,
   obtenerFechasOcupadas
 } from '../controllers/habitacion.controller.js';
-import { upload, upload360 } from '../config/multer.js';
+import { upload, upload360, uploadTemp } from '../config/multer.js';
 
 const router = express.Router();
 
@@ -127,11 +127,20 @@ router.put('/:id/imagenes-360/:idImagen',
 );
 
 // Eliminar imagen 360°
-router.delete('/:id/imagenes-360/:idImagen', 
-  authMiddleware, 
-  initAbility, 
-  checkAbility('delete', 'Habitacion'), 
+router.delete('/:id/imagenes-360/:idImagen',
+  authMiddleware,
+  initAbility,
+  checkAbility('delete', 'Habitacion'),
   eliminarImagen360
+);
+
+// Capturar fotos con cámara y crear imagen 360° automáticamente
+router.post('/:id/capturar-360',
+  authMiddleware,
+  initAbility,
+  checkAbility('update', 'Habitacion'),
+  uploadTemp.array('fotos[]', 30),
+  capturarFotos360
 );
 
 export default router;

@@ -1,6 +1,10 @@
 import db from '../config/db.js';
 import path from 'path';
 import fs from 'fs';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+
+const execFileAsync = promisify(execFile);
 
 // Función auxiliar para extraer solo el nombre del archivo
 function extraerNombreArchivo(rutaCompleta) {
@@ -14,10 +18,7 @@ function construirUrlImagen(nombreArchivo, tipo = 'normal') {
   const carpeta = tipo === '360' ? 'habitaciones/360' : 'habitaciones';
   return `${process.env.BACKEND_URL || 'http://localhost:4000'}/uploads/${carpeta}/${nombreArchivo}`;
 }
-
-// ============================
 // LISTAR HABITACIONES
-// ============================
 export const listarHabitaciones = async (req, res) => {
   try {
     const [habitaciones] = await db.query(`
@@ -794,5 +795,63 @@ export const getTiposHabitacion = async (req, res) => {
   } catch (error) {
     console.error('❌ Error al obtener tipos:', error);
     res.status(500).json({ message: 'Error al obtener tipos' });
+  }
+};
+
+// ============================
+// CAPTURAR FOTOS Y CREAR IMAGEN 360°
+// ============================
+export const capturarFotos360 = async (req, res) => {
+  const { id } = req.params;
+  const { titulo, descripcion } = req.body;
+  const fotos = req.files;
+
+  if (!fotos || fotos.length < 4) {
+    return res.status(400).json({ message: 'Se necesitan al menos 4 fotos para crear la imagen 360°' });
+  }
+
+  const tempFolder = req.tempFolderPath;
+  const outputFilename = `360-${Date.now()}-${Math.round(Math.random() * 1e9)}.jpg`;
+  const outputPath = path.join('uploads/habitaciones/360', outputFilename);
+
+  if (!fs.existsSync('uploads/habitaciones/360')) {
+    fs.mkdirSync('uploads/habitaciones/360', { recursive: true });
+  }
+
+  try {
+    const scriptPath = path.join(process.cwd(), 'scripts', 'stitch360.py');
+    const pythonBin  = process.env.PYTHON_PATH || 'python';
+
+    await execFileAsync(pythonBin, [scriptPath, tempFolder, outputPath], {
+      timeout: 90000
+    });
+
+    const [rows] = await db.query(
+      `SELECT COALESCE(MAX(orden), 0) + 1 AS next_orden
+       FROM habitacion_imagen
+       WHERE id_habitacion = ? AND tipo_imagen = '360'`,
+      [id]
+    );
+    const orden = rows[0].next_orden;
+
+    await db.query(
+      `INSERT INTO habitacion_imagen (id_habitacion, ruta, tipo_imagen, titulo, descripcion, orden)
+       VALUES (?, ?, '360', ?, ?, ?)`,
+      [id, outputFilename, titulo || 'Vista 360°', descripcion || '', orden]
+    );
+
+    fs.rmSync(tempFolder, { recursive: true, force: true });
+
+    res.json({ message: 'Imagen 360° creada exitosamente', ruta: outputFilename });
+
+  } catch (error) {
+    if (tempFolder && fs.existsSync(tempFolder)) {
+      fs.rmSync(tempFolder, { recursive: true, force: true });
+    }
+    console.error('❌ Error en capturarFotos360:', error.stderr || error.message);
+    res.status(500).json({
+      message: 'No se pudo crear la imagen 360°',
+      detalle: error.stderr || error.message
+    });
   }
 };
