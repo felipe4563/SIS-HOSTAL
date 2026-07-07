@@ -96,8 +96,11 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
     const video  = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
-    // Tomar orientación actual desde ref (sin dependencia de closure)
-    const { alpha, beta } = orientRef.current;
+    // Usar la posición IDEAL del target (no el compass real, que es poco confiable en interiores)
+    // El target define exactamente dónde debería estar esta foto en la esfera
+    const target = TARGETS.find(t => t.id === targetId);
+    const alpha = target ? target.alpha : orientRef.current.alpha;
+    const beta  = target ? target.beta  : orientRef.current.beta;
     canvas.width  = video.videoWidth  || 1280;
     canvas.height = video.videoHeight || 720;
     canvas.getContext('2d').drawImage(video, 0, 0);

@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from PIL import Image
 
-FOV_H_DEG = 70.0   # horizontal FOV - ligeramente mayor al real para garantizar solapamiento
+FOV_H_DEG = 65.0   # FOV horizontal de cámara de smartphone (aprox. para la orientación de captura)
 
 
 def project_to_equirectangular(photos, output_w=4096):
