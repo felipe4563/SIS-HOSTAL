@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { capturaFotos360 } from '../../services/habitacion';
 
-// Puntos distribuidos en la esfera: 12 horizontales + 8 superiores
+// 3 filas: media (12 × 30°), superior (8 × 45° hacia arriba), inferior (8 × 45° hacia abajo)
 const TARGETS = [
-  ...Array.from({ length: 12 }, (_, i) => ({ id: `M${i}`, alpha: i * 30,  beta: 0   })),
-  ...Array.from({ length: 8  }, (_, i) => ({ id: `U${i}`, alpha: i * 45,  beta: -35 })),
+  ...Array.from({ length: 12 }, (_, i) => ({ id: `M${i}`, alpha: i * 30, beta:   0 })),
+  ...Array.from({ length:  8 }, (_, i) => ({ id: `U${i}`, alpha: i * 45, beta: -35 })),
+  ...Array.from({ length:  8 }, (_, i) => ({ id: `L${i}`, alpha: i * 45, beta: +35 })),
 ];
 
-const MIN_FOTOS    = 8;
-const THRESHOLD    = 14;   // grados para activar captura
+const MIN_FOTOS    = 10;
+const THRESHOLD    = 15;   // grados para activar captura
 const CAPTURE_MS   = 900;  // ms estable para auto-capturar
 const FOV_H        = 65;   // campo de visión horizontal estimado
 const RETICLE_R    = 42;
@@ -23,17 +24,19 @@ const sphereDist = (a1, b1, a2, b2) =>
   Math.sqrt(angleDiff(a1, a2) ** 2 + (b1 - b2) ** 2);
 
 const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
-  const videoRef          = useRef(null);
-  const canvasRef         = useRef(null);
-  const streamRef         = useRef(null);
-  const captureStartRef   = useRef(null);
-  const optimisticRef     = useRef(new Set()); // previene doble captura antes del setState
+  const videoRef        = useRef(null);
+  const canvasRef       = useRef(null);
+  const streamRef       = useRef(null);
+  const captureStartRef = useRef(null);
+  const optimisticRef   = useRef(new Set());
+  const orientRef       = useRef({ alpha: 0, beta: 0 }); // siempre actualizado, sin re-render
 
   const [listo,           setListo]           = useState(false);
   const [camActiva,       setCamActiva]        = useState(false);
   const [sinGiroscopio,   setSinGiroscopio]    = useState(false);
   const [orient,          setOrient]           = useState({ alpha: 0, beta: 0 });
   const [capturados,      setCapturados]       = useState(new Set());
+  // fotos: array de { blob, alpha, beta }
   const [fotos,           setFotos]            = useState([]);
   const [flash,           setFlash]            = useState(false);
   const [procesando,      setProcesando]       = useState(false);
@@ -69,8 +72,10 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
   useEffect(() => {
     let got = false;
     const handler = (e) => {
+      const o = { alpha: e.alpha ?? 0, beta: e.beta ?? 0 };
+      orientRef.current = o;   // actualización inmediata sin re-render
       if (!got) { got = true; setSinGiroscopio(false); }
-      setOrient({ alpha: e.alpha ?? 0, beta: e.beta ?? 0 });
+      setOrient(o);
     };
     if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
       DeviceOrientationEvent.requestPermission()
@@ -88,12 +93,14 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
     const video  = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
+    // Tomar orientación actual desde ref (sin dependencia de closure)
+    const { alpha, beta } = orientRef.current;
     canvas.width  = video.videoWidth  || 1280;
     canvas.height = video.videoHeight || 720;
     canvas.getContext('2d').drawImage(video, 0, 0);
     canvas.toBlob((blob) => {
       if (!blob) return;
-      setFotos(prev => [...prev, blob]);
+      setFotos(prev => [...prev, { blob, alpha, beta }]);
       if (targetId) setCapturados(prev => new Set([...prev, targetId]));
       setFlash(true);
       setTimeout(() => setFlash(false), 200);
@@ -158,7 +165,9 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
     setProcesando(true);
     setError('');
     try {
-      await capturaFotos360(habitacion.id_habitacion, fotos, titulo);
+      const blobs        = fotos.map(f => f.blob);
+      const orientaciones = fotos.map(f => ({ alpha: f.alpha, beta: f.beta }));
+      await capturaFotos360(habitacion.id_habitacion, blobs, titulo, orientaciones);
       onSuccess();
       onClose();
     } catch (e) {
@@ -168,9 +177,9 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
     }
   };
 
-  const captured  = capturados.size;
-  const total     = TARGETS.length;
-  const progreso  = Math.round((captured / total) * 100);
+  const captured = capturados.size;
+  const total    = TARGETS.length;
+  const progreso = Math.round((captured / total) * 100);
 
   // ── Pantalla previa ──────────────────────────────────────────────────────
   if (!listo) {
@@ -186,7 +195,7 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
             ['🏠', 'Párate en el', 'centro', 'de la habitación'],
             ['🎯', 'Apunta la cámara a cada', 'círculo blanco', 'que aparezca'],
             ['✅', 'Cuando el anillo se llena de', 'verde', ', se captura solo'],
-            ['🔄', 'Gira lentamente cubriendo todas las', 'direcciones', ''],
+            ['🔄', 'Cubre todas las direcciones:', 'alrededor, arriba y abajo', ''],
           ].map(([icon, pre, bold, post], i) => (
             <div key={i} className="flex items-start gap-3 text-gray-300 text-sm">
               <span className="text-xl shrink-0">{icon}</span>
@@ -250,7 +259,6 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
       {/* Retículo central con anillo de progreso */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <svg width={RETICLE_R * 2 + 20} height={RETICLE_R * 2 + 20}>
-          {/* Anillo base */}
           <circle
             cx={RETICLE_R + 10} cy={RETICLE_R + 10} r={RETICLE_R}
             fill="none"
@@ -258,7 +266,6 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
             strokeWidth={nearTarget ? 2.5 : 1.5}
             strokeDasharray={nearTarget ? undefined : '5 4'}
           />
-          {/* Anillo de progreso verde */}
           {nearTarget && (
             <circle
               cx={RETICLE_R + 10} cy={RETICLE_R + 10} r={RETICLE_R}
@@ -271,19 +278,15 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
               transform={`rotate(-90 ${RETICLE_R + 10} ${RETICLE_R + 10})`}
             />
           )}
-          {/* Punto central */}
-          <circle
-            cx={RETICLE_R + 10} cy={RETICLE_R + 10} r={3}
-            fill={nearTarget ? '#22c55e' : 'rgba(255,255,255,0.7)'}
-          />
-          {/* Cruz de referencia */}
-          <line x1={RETICLE_R + 10} y1={RETICLE_R + 10 - 8} x2={RETICLE_R + 10} y2={RETICLE_R + 10 - 14}
+          <circle cx={RETICLE_R + 10} cy={RETICLE_R + 10} r={3}
+            fill={nearTarget ? '#22c55e' : 'rgba(255,255,255,0.7)'} />
+          <line x1={RETICLE_R+10} y1={RETICLE_R+2}  x2={RETICLE_R+10} y2={RETICLE_R-4}
             stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" />
-          <line x1={RETICLE_R + 10} y1={RETICLE_R + 10 + 8} x2={RETICLE_R + 10} y2={RETICLE_R + 10 + 14}
+          <line x1={RETICLE_R+10} y1={RETICLE_R+18} x2={RETICLE_R+10} y2={RETICLE_R+24}
             stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" />
-          <line x1={RETICLE_R + 10 - 8} y1={RETICLE_R + 10} x2={RETICLE_R + 10 - 14} y2={RETICLE_R + 10}
+          <line x1={RETICLE_R+2}  y1={RETICLE_R+10} x2={RETICLE_R-4}  y2={RETICLE_R+10}
             stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" />
-          <line x1={RETICLE_R + 10 + 8} y1={RETICLE_R + 10} x2={RETICLE_R + 10 + 14} y2={RETICLE_R + 10}
+          <line x1={RETICLE_R+18} y1={RETICLE_R+10} x2={RETICLE_R+24} y2={RETICLE_R+10}
             stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </div>
@@ -317,7 +320,7 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
         </div>
       )}
 
-      {/* Hint cuando está cerca de un punto */}
+      {/* Hint cuando está cerca */}
       {nearTarget && !sinGiroscopio && (
         <div className="absolute top-24 left-0 right-0 z-10 flex justify-center pointer-events-none">
           <div className="bg-green-500/80 rounded-full px-4 py-1.5">
@@ -384,7 +387,7 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
         </div>
 
         <p className="text-center text-white/30 text-xs">
-          Apunta a cada círculo · {total} puntos en total
+          Apunta a cada círculo · {total} puntos · arriba, medio y abajo
         </p>
       </div>
     </div>

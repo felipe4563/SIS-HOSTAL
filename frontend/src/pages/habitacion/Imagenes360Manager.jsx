@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { ReactPhotoSphereViewer } from "react-photo-sphere-viewer";
 import {
   listarImagenes360,
   subirImagen360,
@@ -12,6 +13,7 @@ const Imagenes360Manager = ({ habitacion, onClose, onUpdate }) => {
   const [loading,        setLoading]        = useState(true);
   const [uploading,      setUploading]      = useState(false);
   const [mostrarCaptura, setMostrarCaptura] = useState(false);
+  const [viewerUrl,      setViewerUrl]      = useState(null);
 
   // Form para nueva imagen
   const [newImage, setNewImage] = useState({
@@ -351,6 +353,12 @@ const Imagenes360Manager = ({ habitacion, onClose, onUpdate }) => {
                           )}
                           <div className="flex gap-2 mt-3">
                             <button
+                              onClick={() => setViewerUrl(img.url)}
+                              className="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-700 py-2 rounded-lg text-sm font-medium transition-colors"
+                            >
+                              🔄 Ver 360°
+                            </button>
+                            <button
                               onClick={() => startEdit(img)}
                               className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-700 py-2 rounded-lg text-sm font-medium transition-colors"
                             >
@@ -409,6 +417,29 @@ const Imagenes360Manager = ({ habitacion, onClose, onUpdate }) => {
             if (onUpdate) onUpdate();
           }}
         />
+      )}
+
+      {/* Viewer 360° interactivo */}
+      {viewerUrl && (
+        <div className="fixed inset-0 z-[400] bg-black flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 bg-black/80 shrink-0">
+            <span className="text-white font-semibold text-sm">Tour Virtual 360°</span>
+            <button
+              onClick={() => setViewerUrl(null)}
+              className="text-white/70 hover:text-white text-3xl leading-none"
+            >
+              ×
+            </button>
+          </div>
+          <div className="flex-1 min-h-0">
+            <ReactPhotoSphereViewer
+              src={viewerUrl}
+              height="100%"
+              width="100%"
+              defaultZoomLvl={50}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

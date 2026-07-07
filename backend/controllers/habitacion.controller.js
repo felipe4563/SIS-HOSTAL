@@ -803,7 +803,7 @@ export const getTiposHabitacion = async (req, res) => {
 // ============================
 export const capturarFotos360 = async (req, res) => {
   const { id } = req.params;
-  const { titulo, descripcion } = req.body;
+  const { titulo, orientaciones: orientacionesRaw } = req.body;
   const fotos = req.files;
 
   if (!fotos || fotos.length < 4) {
@@ -819,11 +819,22 @@ export const capturarFotos360 = async (req, res) => {
   }
 
   try {
+    // Guardar orientaciones en la carpeta temporal para que Python las use
+    if (orientacionesRaw) {
+      try {
+        const orientaciones = JSON.parse(orientacionesRaw);
+        fs.writeFileSync(
+          path.join(tempFolder, 'orientaciones.json'),
+          JSON.stringify(orientaciones)
+        );
+      } catch (_) { /* si falla el parse, Python usará el stitcher de fallback */ }
+    }
+
     const scriptPath = path.join(process.cwd(), 'scripts', 'stitch360.py');
     const pythonBin  = process.env.PYTHON_PATH || 'python';
 
     await execFileAsync(pythonBin, [scriptPath, tempFolder, outputPath], {
-      timeout: 90000
+      timeout: 120000
     });
 
     const [rows] = await db.query(
