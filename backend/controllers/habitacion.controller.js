@@ -848,7 +848,7 @@ export const capturarFotos360 = async (req, res) => {
     await db.query(
       `INSERT INTO habitacion_imagen (id_habitacion, ruta, tipo_imagen, titulo, descripcion, orden)
        VALUES (?, ?, '360', ?, ?, ?)`,
-      [id, outputFilename, titulo || 'Vista 360°', descripcion || '', orden]
+      [id, outputFilename, titulo || 'Vista 360°', null, orden]
     );
 
     fs.rmSync(tempFolder, { recursive: true, force: true });
