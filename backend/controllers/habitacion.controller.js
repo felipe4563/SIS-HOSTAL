@@ -831,7 +831,7 @@ export const capturarFotos360 = async (req, res) => {
     }
 
     const scriptPath = path.join(process.cwd(), 'scripts', 'stitch360.py');
-    const pythonBin  = process.env.PYTHON_PATH || 'python';
+    const pythonBin  = process.env.PYTHON_PATH || 'python3';
 
     await execFileAsync(pythonBin, [scriptPath, tempFolder, outputPath], {
       timeout: 120000
@@ -859,10 +859,11 @@ export const capturarFotos360 = async (req, res) => {
     if (tempFolder && fs.existsSync(tempFolder)) {
       fs.rmSync(tempFolder, { recursive: true, force: true });
     }
-    console.error('❌ Error en capturarFotos360:', error.stderr || error.message);
+    const detalle = error.stderr || error.message || 'Error desconocido';
+    console.error('❌ Error en capturarFotos360:', detalle);
     res.status(500).json({
       message: 'No se pudo crear la imagen 360°',
-      detalle: error.stderr || error.message
+      detalle,
     });
   }
 };
