@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ReactPhotoSphereViewer } from 'react-photo-sphere-viewer';
+import Visor360 from '../../components/Visor360';
 
 const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000';
 
@@ -273,20 +273,12 @@ const TourVirtual360 = ({ imagenes360 = [], nombreHabitacion = 'Habitación', on
             </div>
           )}
 
-          {/* Visor 360 */}
-          <ReactPhotoSphereViewer
+          {/* Visor 360 — Three.js */}
+          <Visor360
             key={imagen.ruta}
             src={buildSrc(imagen.ruta)}
-            height="100%"
-            width="100%"
-            navbar={false}
-            defaultZoomLvl={50}
-            mousewheel
-            touchmoveTwoFingers={false}
-            autorotateDelay={2800}
-            autorotateSpeed="1rpm"
             onReady={() => setCargando(false)}
-            container=""
+            onError={() => setCargando(false)}
           />
 
           {/* ── Hint "arrastra" ── */}

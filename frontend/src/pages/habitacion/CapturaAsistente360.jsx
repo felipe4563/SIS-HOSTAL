@@ -1,19 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { capturaFotos360 } from '../../services/habitacion';
 
-// 3 filas: media (12 × 30°), superior (8 × 45° hacia arriba), inferior (8 × 45° hacia abajo)
-const TARGETS = [
-  ...Array.from({ length: 12 }, (_, i) => ({ id: `M${i}`, alpha: i * 30, beta:   0 })),
-  ...Array.from({ length:  8 }, (_, i) => ({ id: `U${i}`, alpha: i * 45, beta: -35 })),
-  ...Array.from({ length:  8 }, (_, i) => ({ id: `L${i}`, alpha: i * 45, beta: +35 })),
-];
-
-const MIN_FOTOS    = 10;
-const THRESHOLD    = 15;   // grados para activar captura
-const CAPTURE_MS   = 900;  // ms estable para auto-capturar
-const FOV_H        = 65;   // campo de visión horizontal estimado
-const RETICLE_R    = 42;
-const CIRCUMFERENCE = 2 * Math.PI * RETICLE_R;
+const CAPTURE_DIST = 22;   // grados mínimos desde cualquier foto anterior para auto-disparar
+const HOLD_MS      = 500;  // ms quieto antes de capturar
+const MIN_FOTOS    = 12;
+const TARGET_FOTOS = 28;
 
 const angleDiff = (a, b) => {
   let d = ((a - b) % 360 + 360) % 360;
@@ -23,27 +14,64 @@ const angleDiff = (a, b) => {
 const sphereDist = (a1, b1, a2, b2) =>
   Math.sqrt(angleDiff(a1, a2) ** 2 + (b1 - b2) ** 2);
 
+// Mini mapa de cobertura esférica
+const CoverageMinimap = ({ fotos }) => {
+  const COLS = 36, ROWS = 18, CELL = 4;
+  return (
+    <div style={{
+      background: 'rgba(0,0,0,0.65)',
+      borderRadius: 8,
+      padding: 5,
+      border: '1px solid rgba(255,255,255,0.15)',
+    }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${COLS}, ${CELL}px)`,
+        gap: 1,
+      }}>
+        {Array.from({ length: ROWS }, (_, row) =>
+          Array.from({ length: COLS }, (_, col) => {
+            const alpha = (col / COLS) * 360;
+            const beta  = ((row / ROWS) - 0.5) * 160;
+            const covered = fotos.some(f => sphereDist(f.alpha, f.beta, alpha, beta) < 25);
+            return (
+              <div key={`${row}-${col}`} style={{
+                width: CELL, height: CELL, borderRadius: 1,
+                background: covered ? '#22c55e' : 'rgba(255,255,255,0.1)',
+              }} />
+            );
+          })
+        )}
+      </div>
+      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 9, textAlign: 'center', marginTop: 3 }}>
+        cobertura 360°
+      </p>
+    </div>
+  );
+};
+
 const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
   const videoRef        = useRef(null);
   const canvasRef       = useRef(null);
   const streamRef       = useRef(null);
-  const captureStartRef = useRef(null);
-  const optimisticRef   = useRef(new Set());
-  const orientRef       = useRef({ alpha: 0, beta: 0 }); // siempre actualizado, sin re-render
+  const orientRef       = useRef({ alpha: 0, beta: 0 });
+  const alpha0Ref       = useRef(null);      // dirección inicial = "norte" relativo
+  const capturedPosRef  = useRef([]);         // [{alpha,beta}] actualizado sincrónicamente
+  const holdTimerRef    = useRef(null);
+  const holdStartRef    = useRef(null);
 
-  const [listo,           setListo]           = useState(false);
-  const [camActiva,       setCamActiva]        = useState(false);
-  const [sinGiroscopio,   setSinGiroscopio]    = useState(false);
-  const [orient,          setOrient]           = useState({ alpha: 0, beta: 0 });
-  const [capturados,      setCapturados]       = useState(new Set());
-  // fotos: array de { blob, alpha, beta }
-  const [fotos,           setFotos]            = useState([]);
-  const [flash,           setFlash]            = useState(false);
-  const [procesando,      setProcesando]       = useState(false);
-  const [error,           setError]            = useState('');
-  const [titulo,          setTitulo]           = useState('Vista 360°');
-  const [captureProgress, setCaptureProgress]  = useState(0);
-  const [nearTarget,      setNearTarget]       = useState(false);
+  const [listo,        setListo]        = useState(false);
+  const [camActiva,    setCamActiva]    = useState(false);
+  const [sinGiro,      setSinGiro]      = useState(false);
+  const [orient,       setOrient]       = useState({ alpha: 0, beta: 0 });
+  const [fotos,        setFotos]        = useState([]);
+  const [flash,        setFlash]        = useState(false);
+  const [procesando,   setProcesando]   = useState(false);
+  const [error,        setError]        = useState('');
+  const [titulo,       setTitulo]       = useState('Vista 360°');
+  const [started,      setStarted]      = useState(false);
+  const [holdProgress, setHoldProgress] = useState(0);
+  const [farEnough,    setFarEnough]    = useState(false);
 
   // ── Cámara ──────────────────────────────────────────────────────────────
   const iniciarCamara = async () => {
@@ -55,7 +83,7 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
       streamRef.current = stream;
       setListo(true);
     } catch {
-      setError('No se pudo acceder a la cámara. Verifica los permisos del navegador.');
+      setError('No se pudo acceder a la cámara. Verifica los permisos.');
     }
   };
 
@@ -72,95 +100,103 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
   useEffect(() => {
     let got = false;
     const handler = (e) => {
-      // DeviceOrientation.beta en portrait: ~90° = horizontal, ~55° = apuntando 35° arriba
-      // Convertimos a ángulo de elevación: 0=horizontal, negativo=arriba, positivo=abajo
+      // beta en portrait: ~90° = horizontal → convertir a elevación (0=horizontal)
       const elevation = (e.beta ?? 90) - 90;
       const o = { alpha: e.alpha ?? 0, beta: elevation };
       orientRef.current = o;
-      if (!got) { got = true; setSinGiroscopio(false); }
+      if (!got) { got = true; setSinGiro(false); }
       setOrient(o);
     };
     if (typeof DeviceOrientationEvent?.requestPermission === 'function') {
       DeviceOrientationEvent.requestPermission()
         .then(p => { if (p === 'granted') window.addEventListener('deviceorientation', handler); })
-        .catch(() => setSinGiroscopio(true));
+        .catch(() => setSinGiro(true));
     } else {
       window.addEventListener('deviceorientation', handler);
-      setTimeout(() => { if (!got) setSinGiroscopio(true); }, 2000);
+      setTimeout(() => { if (!got) setSinGiro(true); }, 2000);
     }
     return () => window.removeEventListener('deviceorientation', handler);
   }, []);
 
-  // ── Captura ──────────────────────────────────────────────────────────────
-  const capturarFoto = useCallback((targetId) => {
+  // ── Calcular alpha relativo al inicio ────────────────────────────────────
+  const getRelAlpha = useCallback(() => {
+    const raw = orientRef.current.alpha;
+    if (alpha0Ref.current === null) return 0;
+    return ((raw - alpha0Ref.current) % 360 + 360) % 360;
+  }, []);
+
+  // ── Capturar foto ────────────────────────────────────────────────────────
+  const capturarFoto = useCallback(() => {
     const video  = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
-    // Usar la posición IDEAL del target (no el compass real, que es poco confiable en interiores)
-    // El target define exactamente dónde debería estar esta foto en la esfera
-    const target = TARGETS.find(t => t.id === targetId);
-    const alpha = target ? target.alpha : orientRef.current.alpha;
-    const beta  = target ? target.beta  : orientRef.current.beta;
+
+    const alpha = getRelAlpha();
+    const beta  = orientRef.current.beta;
+
     canvas.width  = video.videoWidth  || 1280;
     canvas.height = video.videoHeight || 720;
     canvas.getContext('2d').drawImage(video, 0, 0);
     canvas.toBlob((blob) => {
       if (!blob) return;
+      capturedPosRef.current = [...capturedPosRef.current, { alpha, beta }];
       setFotos(prev => [...prev, { blob, alpha, beta }]);
-      if (targetId) setCapturados(prev => new Set([...prev, targetId]));
       setFlash(true);
-      setTimeout(() => setFlash(false), 200);
-    }, 'image/jpeg', 0.92);
-  }, []);
+      setTimeout(() => setFlash(false), 150);
+    }, 'image/jpeg', 0.90);
+  }, [getRelAlpha]);
 
-  // ── Auto-captura cuando el retículo está sobre un punto ─────────────────
-  useEffect(() => {
-    if (!camActiva || procesando) return;
-    const { alpha, beta } = orient;
-
-    let closest = null;
-    let minDist = Infinity;
-    TARGETS.forEach(t => {
-      if (capturados.has(t.id) || optimisticRef.current.has(t.id)) return;
-      const d = sphereDist(alpha, beta, t.alpha, t.beta);
-      if (d < minDist) { minDist = d; closest = t; }
-    });
-
-    const isNear = !!closest && minDist < THRESHOLD;
-    setNearTarget(isNear);
-
-    if (!isNear) {
-      captureStartRef.current = null;
-      setCaptureProgress(0);
-      return;
-    }
-
-    if (!captureStartRef.current) captureStartRef.current = Date.now();
-    const elapsed = Date.now() - captureStartRef.current;
-    setCaptureProgress(Math.min(100, (elapsed / CAPTURE_MS) * 100));
-
-    if (elapsed >= CAPTURE_MS) {
-      captureStartRef.current = null;
-      setCaptureProgress(0);
-      optimisticRef.current.add(closest.id);
-      capturarFoto(closest.id);
-    }
-  }, [orient, camActiva, procesando, capturados, capturarFoto]);
-
-  // ── Proyección de puntos en pantalla ────────────────────────────────────
-  const projectTarget = (target) => {
-    const w    = window.innerWidth;
-    const h    = window.innerHeight;
-    const fovV = FOV_H * (h / w);
-    const da   = angleDiff(target.alpha, orient.alpha);
-    const db   = target.beta - orient.beta;
-    return {
-      x: w / 2 + (da / (FOV_H / 2)) * (w / 2),
-      y: h / 2 + (db / (fovV / 2)) * (h / 2),
-      visible: Math.abs(da) < FOV_H / 2 + 22 && Math.abs(db) < fovV / 2 + 22,
-      dist: sphereDist(orient.alpha, orient.beta, target.alpha, target.beta),
-    };
+  // ── Empezar ──────────────────────────────────────────────────────────────
+  const handleStart = () => {
+    alpha0Ref.current    = orientRef.current.alpha;
+    capturedPosRef.current = [];
+    capturarFoto();
+    setStarted(true);
   };
+
+  // ── Auto-captura por movimiento ──────────────────────────────────────────
+  useEffect(() => {
+    if (!camActiva || !started || procesando) return;
+
+    const alpha = getRelAlpha();
+    const beta  = orientRef.current.beta;
+    const positions = capturedPosRef.current;
+
+    const dist = positions.length === 0
+      ? Infinity
+      : Math.min(...positions.map(f => sphereDist(alpha, beta, f.alpha, f.beta)));
+
+    const lejos = dist >= CAPTURE_DIST;
+    setFarEnough(lejos);
+
+    if (lejos) {
+      if (!holdTimerRef.current) {
+        holdStartRef.current = Date.now();
+        holdTimerRef.current = setInterval(() => {
+          const elapsed = Date.now() - holdStartRef.current;
+          setHoldProgress(Math.min(100, (elapsed / HOLD_MS) * 100));
+          if (elapsed >= HOLD_MS) {
+            clearInterval(holdTimerRef.current);
+            holdTimerRef.current = null;
+            holdStartRef.current = null;
+            setHoldProgress(0);
+            capturarFoto();
+          }
+        }, 30);
+      }
+    } else {
+      if (holdTimerRef.current) {
+        clearInterval(holdTimerRef.current);
+        holdTimerRef.current = null;
+        holdStartRef.current = null;
+        setHoldProgress(0);
+      }
+    }
+  }, [orient, camActiva, started, procesando, capturarFoto, getRelAlpha]);
+
+  useEffect(() => () => {
+    if (holdTimerRef.current) clearInterval(holdTimerRef.current);
+  }, []);
 
   // ── Enviar al servidor ───────────────────────────────────────────────────
   const handleEnviar = async () => {
@@ -183,25 +219,21 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
     }
   };
 
-  const captured = capturados.size;
-  const total    = TARGETS.length;
-  const progreso = Math.round((captured / total) * 100);
-
-  // ── Pantalla previa ──────────────────────────────────────────────────────
+  // ── Pantalla inicial ──────────────────────────────────────────────────────
   if (!listo) {
     return (
       <div className="fixed inset-0 z-[300] flex flex-col items-center justify-center bg-gray-900 px-6 text-center">
         <div className="text-6xl mb-5">📷</div>
         <h2 className="text-white text-2xl font-bold mb-1">Captura 360°</h2>
-        <p className="text-gray-400 text-sm">Hab. {habitacion.numero} — {habitacion.tipo_habitacion}</p>
+        <p className="text-gray-400 text-sm mb-2">Hab. {habitacion.numero} — {habitacion.tipo_habitacion}</p>
 
-        <div className="bg-white/5 rounded-2xl p-5 my-6 text-left space-y-3 w-full max-w-sm">
+        <div className="bg-white/5 rounded-2xl p-5 my-4 text-left space-y-3 w-full max-w-sm">
           <p className="text-white font-semibold text-sm mb-1">Cómo hacerlo:</p>
           {[
             ['🏠', 'Párate en el', 'centro', 'de la habitación'],
-            ['🎯', 'Apunta la cámara a cada', 'círculo blanco', 'que aparezca'],
-            ['✅', 'Cuando el anillo se llena de', 'verde', ', se captura solo'],
-            ['🔄', 'Cubre todas las direcciones:', 'alrededor, arriba y abajo', ''],
+            ['▶️', 'Presiona', 'Empezar', '— captura la primera foto'],
+            ['🔄', 'Muévete despacio en', 'todas direcciones', '(alrededor, arriba y abajo)'],
+            ['✅', 'Se captura', 'automáticamente', 'cada vez que te mueves ~22°'],
           ].map(([icon, pre, bold, post], i) => (
             <div key={i} className="flex items-start gap-3 text-gray-300 text-sm">
               <span className="text-xl shrink-0">{icon}</span>
@@ -216,10 +248,8 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
           </div>
         )}
 
-        <button
-          onClick={iniciarCamara}
-          className="w-full max-w-sm bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-bold py-4 rounded-2xl text-lg transition-colors"
-        >
+        <button onClick={iniciarCamara}
+          className="w-full max-w-sm bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-bold py-4 rounded-2xl text-lg">
           Activar cámara
         </button>
         <button onClick={onClose} className="mt-3 text-gray-500 text-sm py-2 w-full max-w-sm">
@@ -229,7 +259,11 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
     );
   }
 
-  // ── Vista de captura ─────────────────────────────────────────────────────
+  const RETICLE_R     = 44;
+  const CIRCUMFERENCE = 2 * Math.PI * RETICLE_R;
+  const cobertura     = Math.min(100, Math.round((fotos.length / TARGET_FOTOS) * 100));
+
+  // ── Vista de captura ──────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 z-[300] bg-black overflow-hidden">
       {flash && <div className="absolute inset-0 z-50 bg-white opacity-60 pointer-events-none" />}
@@ -237,164 +271,115 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
       <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" playsInline muted />
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Puntos proyectados sobre la cámara */}
-      {!sinGiroscopio && TARGETS.map(t => {
-        const { x, y, visible, dist } = projectTarget(t);
-        if (!visible) return null;
-        const done      = capturados.has(t.id) || optimisticRef.current.has(t.id);
-        const isClosest = nearTarget && dist < THRESHOLD;
-        return (
-          <div
-            key={t.id}
-            className="absolute pointer-events-none"
-            style={{ left: x, top: y, transform: 'translate(-50%,-50%)' }}
-          >
-            <div className={`
-              rounded-full border-2 transition-all duration-200
-              ${done
-                ? 'w-4 h-4 bg-green-400 border-green-300 opacity-90'
-                : isClosest
-                  ? 'w-7 h-7 bg-white/25 border-white shadow-lg shadow-white/20'
-                  : 'w-5 h-5 bg-transparent border-white/50'
-              }
-            `} />
-          </div>
-        );
-      })}
-
       {/* Retículo central con anillo de progreso */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <svg width={RETICLE_R * 2 + 20} height={RETICLE_R * 2 + 20}>
           <circle
             cx={RETICLE_R + 10} cy={RETICLE_R + 10} r={RETICLE_R}
             fill="none"
-            stroke={nearTarget ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)'}
-            strokeWidth={nearTarget ? 2.5 : 1.5}
-            strokeDasharray={nearTarget ? undefined : '5 4'}
+            stroke={farEnough ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)'}
+            strokeWidth={farEnough ? 2.5 : 1.5}
+            strokeDasharray={farEnough ? undefined : '5 4'}
           />
-          {nearTarget && (
+          {farEnough && holdProgress > 0 && (
             <circle
               cx={RETICLE_R + 10} cy={RETICLE_R + 10} r={RETICLE_R}
-              fill="none"
-              stroke="#22c55e"
-              strokeWidth="4"
-              strokeLinecap="round"
+              fill="none" stroke="#22c55e" strokeWidth="4" strokeLinecap="round"
               strokeDasharray={CIRCUMFERENCE}
-              strokeDashoffset={CIRCUMFERENCE * (1 - captureProgress / 100)}
+              strokeDashoffset={CIRCUMFERENCE * (1 - holdProgress / 100)}
               transform={`rotate(-90 ${RETICLE_R + 10} ${RETICLE_R + 10})`}
             />
           )}
           <circle cx={RETICLE_R + 10} cy={RETICLE_R + 10} r={3}
-            fill={nearTarget ? '#22c55e' : 'rgba(255,255,255,0.7)'} />
-          <line x1={RETICLE_R+10} y1={RETICLE_R+2}  x2={RETICLE_R+10} y2={RETICLE_R-4}
-            stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" />
-          <line x1={RETICLE_R+10} y1={RETICLE_R+18} x2={RETICLE_R+10} y2={RETICLE_R+24}
-            stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" />
-          <line x1={RETICLE_R+2}  y1={RETICLE_R+10} x2={RETICLE_R-4}  y2={RETICLE_R+10}
-            stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" />
-          <line x1={RETICLE_R+18} y1={RETICLE_R+10} x2={RETICLE_R+24} y2={RETICLE_R+10}
-            stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" />
+            fill={farEnough ? '#22c55e' : 'rgba(255,255,255,0.7)'} />
+          {/* Cruz central */}
+          {[[-8, 0, -2, 0], [8, 0, 2, 0], [0, -8, 0, -2], [0, 8, 0, 2]].map(([x1, y1, x2, y2], i) => (
+            <line key={i}
+              x1={RETICLE_R + 10 + x1} y1={RETICLE_R + 10 + y1}
+              x2={RETICLE_R + 10 + x2} y2={RETICLE_R + 10 + y2}
+              stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" strokeLinecap="round" />
+          ))}
         </svg>
       </div>
 
       {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/70 to-transparent">
-        <button onClick={onClose} className="flex items-center gap-2 text-white text-sm font-medium">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+        <button onClick={onClose} className="text-white p-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-6 h-6">
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 12H5M12 5l-7 7 7 7"/>
           </svg>
-          Cancelar
         </button>
-        <div className="bg-black/50 rounded-full px-3 py-1 flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-green-400" />
-          <span className="text-white text-sm font-semibold">{captured}/{total} puntos</span>
+        <div className="text-center">
+          <p className="text-white font-bold text-sm">{fotos.length} fotos · {cobertura}% cobertura</p>
+          {started && (
+            <p className="text-xs mt-0.5" style={{ color: farEnough ? '#22c55e' : '#9ca3af' }}>
+              {farEnough ? '⏺ Quieto… capturando' : 'Muévete para capturar más'}
+            </p>
+          )}
         </div>
+        <div className="w-8" />
       </div>
 
-      {/* Barra de progreso */}
-      <div className="absolute top-[52px] left-0 right-0 z-10 h-1 bg-white/20">
-        <div className="h-full bg-green-400 transition-all duration-300" style={{ width: `${progreso}%` }} />
-      </div>
+      {/* Mini mapa de cobertura */}
+      {fotos.length > 0 && (
+        <div className="absolute top-16 right-3 z-10">
+          <CoverageMinimap fotos={fotos} />
+        </div>
+      )}
 
       {/* Sin giroscopio */}
-      {sinGiroscopio && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
-          <div className="bg-amber-500/85 rounded-xl px-4 py-2 text-center">
-            <p className="text-white text-sm font-medium">Sin giroscopio</p>
-            <p className="text-white/80 text-xs mt-0.5">Usa el botón para capturar</p>
+      {sinGiro && started && (
+        <div className="absolute top-20 left-0 right-0 flex justify-center z-10 px-4">
+          <div className="bg-yellow-500/90 text-black text-xs font-semibold px-3 py-1.5 rounded-full text-center">
+            Sin giroscopio — usa el botón para capturar manualmente
           </div>
         </div>
       )}
 
-      {/* Hint cuando está cerca */}
-      {nearTarget && !sinGiroscopio && (
-        <div className="absolute top-24 left-0 right-0 z-10 flex justify-center pointer-events-none">
-          <div className="bg-green-500/80 rounded-full px-4 py-1.5">
-            <p className="text-white text-xs font-medium">¡Mantén estable!</p>
-          </div>
-        </div>
-      )}
-
-      {/* Controles inferiores */}
-      <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/85 to-transparent px-4 pb-8 pt-16 space-y-3">
+      {/* Footer */}
+      <div className="absolute bottom-0 left-0 right-0 z-10 px-4 pb-8 pt-4 bg-gradient-to-t from-black/80 to-transparent">
         {error && (
-          <div className="bg-red-500/20 border border-red-400/50 rounded-xl px-3 py-2 text-red-200 text-sm text-center">
+          <div className="bg-red-500/20 border border-red-400/40 rounded-xl px-4 py-2 text-red-300 text-sm mb-3 text-center">
             {error}
           </div>
         )}
 
         <input
-          type="text"
           value={titulo}
           onChange={e => setTitulo(e.target.value)}
-          placeholder="Nombre de esta vista (ej: Sala principal)"
-          className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-white text-sm placeholder-white/40 focus:outline-none focus:border-white/50"
+          className="w-full bg-white/10 text-white placeholder-white/40 rounded-xl px-4 py-2.5 text-sm mb-3 outline-none border border-white/10 focus:border-white/30"
+          placeholder="Nombre del tour (ej: Habitación Doble)"
         />
 
-        <div className="flex gap-3">
-          {/* Captura manual */}
-          <button
-            onClick={() => capturarFoto(null)}
-            disabled={!camActiva || procesando}
-            className="flex items-center justify-center gap-2 bg-white/15 hover:bg-white/25 disabled:opacity-40 border border-white/20 text-white rounded-xl py-3 px-4 text-sm font-medium transition-colors"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5 shrink-0">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-              <circle cx="12" cy="13" r="3"/>
-            </svg>
-            <span>{fotos.length}</span>
+        {!started ? (
+          <button onClick={handleStart}
+            className="w-full bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-bold py-4 rounded-2xl text-lg">
+            ▶ Empezar captura
           </button>
+        ) : (
+          <div className="flex gap-3 items-center">
+            {/* Botón manual de captura */}
+            <button
+              onPointerDown={capturarFoto}
+              className="flex-none w-16 h-16 rounded-full border-4 border-white bg-white/20 active:bg-white/40 flex items-center justify-center"
+            >
+              <div className="w-10 h-10 rounded-full bg-white" />
+            </button>
 
-          {/* Crear 360 */}
-          <button
-            onClick={handleEnviar}
-            disabled={fotos.length < MIN_FOTOS || procesando}
-            className="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 disabled:bg-green-900/50 disabled:text-white/40 text-white rounded-xl py-3 text-sm font-bold transition-colors"
-          >
-            {procesando ? (
-              <>
-                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                </svg>
-                Procesando…
-              </>
-            ) : fotos.length < MIN_FOTOS ? (
-              `Faltan ${MIN_FOTOS - fotos.length} fotos`
-            ) : (
-              <>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-                </svg>
-                Crear 360°
-              </>
-            )}
-          </button>
-        </div>
-
-        <p className="text-center text-white/30 text-xs">
-          Apunta a cada círculo · {total} puntos · arriba, medio y abajo
-        </p>
+            <button
+              onClick={handleEnviar}
+              disabled={procesando || fotos.length < MIN_FOTOS}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold py-4 rounded-2xl text-sm"
+            >
+              {procesando
+                ? 'Procesando…'
+                : fotos.length < MIN_FOTOS
+                  ? `Necesitas ${MIN_FOTOS - fotos.length} fotos más`
+                  : `Crear panorama (${fotos.length} fotos)`
+              }
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
