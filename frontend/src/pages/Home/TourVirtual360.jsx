@@ -1,467 +1,407 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Visor360 from '../../components/Visor360';
 
-const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000';
+const API_BASE = import.meta.env.VITE_BASE_URL || 'http://localhost:4000';
+const toUrl = (r) => (!r ? '' : r.startsWith('http') ? r : `${API_BASE}/api/uploads/${r}`);
 
-const buildSrc = (ruta) => {
-  if (!ruta) return '';
-  if (ruta.startsWith('http://') || ruta.startsWith('https://')) return ruta;
-  return `${API_BASE_URL}/api/uploads/${ruta}`;
-};
-
-/* ── Íconos inline ──────────────────────────────────────── */
-const IcoArrowLeft  = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-    <path d="M15 18l-6-6 6-6" />
-  </svg>
-);
-const IcoArrowRight = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-    <path d="M9 18l6-6-6-6" />
-  </svg>
-);
+/* ── Iconos ──────────────────────────────────────────────────── */
 const IcoBack = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}
+    strokeLinecap="round" strokeLinejoin="round" style={{ width: '100%', height: '100%' }}>
     <path d="M19 12H5M12 5l-7 7 7 7" />
   </svg>
 );
-const IcoDrag = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-    <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
-    <path d="M7 8l-4 4 4 4M17 8l4 4-4 4" />
+const IcoPrev = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}
+    strokeLinecap="round" strokeLinejoin="round" style={{ width: '100%', height: '100%' }}>
+    <path d="M15 18l-6-6 6-6" />
+  </svg>
+);
+const IcoNext = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}
+    strokeLinecap="round" strokeLinejoin="round" style={{ width: '100%', height: '100%' }}>
+    <path d="M9 18l6-6-6-6" />
   </svg>
 );
 
-/* ── Componente principal ───────────────────────────────── */
-const TourVirtual360 = ({ imagenes360 = [], nombreHabitacion = 'Habitación', onClose }) => {
-  const [imagenActual, setImagenActual]   = useState(0);
-  const [cargando,     setCargando]       = useState(true);
-  const [hintVisible,  setHintVisible]    = useState(false);
-  const [thumbOpen,    setThumbOpen]      = useState(false);
-  const hintTimerRef = useRef(null);
+/* ── Estilos globales del componente ────────────────────────── */
+const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=Inter:wght@300;400;500&display=swap');
 
-  const imagen = imagenes360[imagenActual];
+  .t360 {
+    font-family: 'Inter', sans-serif;
+    --gold:        #c9a84c;
+    --gold-glow:   rgba(201,168,76,.3);
+    --gold-border: rgba(201,168,76,.22);
+    --dark:        #0b0b0f;
+    --glass:       rgba(11,11,15,.84);
+    --surface:     rgba(255,255,255,.04);
+    --text:        rgba(255,255,255,.88);
+    --text-dim:    rgba(255,255,255,.42);
+  }
+
+  /* Spinner */
+  @keyframes t360spin { to { transform: rotate(360deg); } }
+  .t360-spin-a { animation: t360spin 1.1s linear infinite; }
+  .t360-spin-b { animation: t360spin .72s linear infinite reverse; }
+
+  /* Hint */
+  @keyframes t360hint-in {
+    from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0);   }
+  }
+  .t360-hint-show { animation: t360hint-in .38s ease forwards; }
+  .t360-hint-hide { opacity: 0; transition: opacity .4s ease; pointer-events: none; }
+
+  /* Botones */
+  .t360-btn-back {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 10px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--gold-border);
+    background: var(--surface);
+    color: rgba(201,168,76,.9);
+    transition: background .18s, border-color .18s;
+    flex-shrink: 0;
+  }
+  .t360-btn-back:hover {
+    background: rgba(201,168,76,.1);
+    border-color: rgba(201,168,76,.45);
+  }
+  .t360-btn-back:active { transform: scale(.95); }
+  .t360-back-text { display: none; font-size: 13px; font-weight: 500; }
+
+  .t360-nav {
+    display: none;   /* hidden on mobile */
+    position: absolute; top: 50%; transform: translateY(-50%);
+    z-index: 15; width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid var(--gold-border); background: var(--glass);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    color: rgba(201,168,76,.8); cursor: pointer;
+    align-items: center; justify-content: center;
+    transition: background .18s, border-color .18s, transform .15s;
+  }
+  .t360-nav:hover {
+    background: rgba(201,168,76,.14);
+    border-color: rgba(201,168,76,.5);
+    transform: translateY(-50%) scale(1.07);
+  }
+  .t360-nav:active { transform: translateY(-50%) scale(.94); }
+
+  .t360-thumb {
+    flex-shrink: 0; overflow: hidden; border-radius: 6px; cursor: pointer;
+    width: 66px; height: 46px; position: relative;
+    transition: opacity .2s, transform .18s, border-color .2s, box-shadow .2s;
+  }
+  .t360-thumb:hover  { transform: scale(1.05); opacity: .9 !important; }
+  .t360-thumb:active { transform: scale(.96); }
+
+  /* Responsive ≥ 600 px */
+  @media (min-width: 600px) {
+    .t360-back-text { display: inline; }
+    .t360-nav       { display: flex !important; }
+    .t360-thumb     { width: 86px !important; height: 60px !important; }
+    .t360-header    { padding: 12px 20px !important; }
+    .t360-strip-row { padding: 10px 20px !important; }
+  }
+
+  /* Ocultar scrollbar */
+  .t360-strip-scroll { scrollbar-width: none; }
+  .t360-strip-scroll::-webkit-scrollbar { display: none; }
+
+  /* Reducir motion */
+  @media (prefers-reduced-motion: reduce) {
+    .t360-spin-a, .t360-spin-b { animation: none; }
+    .t360-hint-show, .t360-hint-hide { animation: none; transition: none; }
+  }
+`;
+
+/* ── Componente principal ────────────────────────────────────── */
+const TourVirtual360 = ({
+  imagenes360 = [],
+  nombreHabitacion = 'Habitación',
+  onClose,
+}) => {
+  const [current,     setCurrent]     = useState(0);
+  const [loading,     setLoading]     = useState(true);
+  const [hintVisible, setHintVisible] = useState(false);
+  const hintTimer = useRef(null);
+  const thumbRef  = useRef(null);
+
+  const imagen = imagenes360[current];
   const total  = imagenes360.length;
 
-  /* ── Tecla Escape ───────────────────────────────────── */
+  /* Tecla Escape */
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    const fn = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', fn);
+    return () => document.removeEventListener('keydown', fn);
   }, [onClose]);
 
-  /* ── Bloquear scroll ────────────────────────────────── */
+  /* Bloquear scroll del body */
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
   }, []);
 
-  /* ── Hint "arrastra" ────────────────────────────────── */
+  /* Mostrar hint cuando carga */
   useEffect(() => {
-    if (!cargando) {
+    if (!loading) {
       setHintVisible(true);
-      hintTimerRef.current = setTimeout(() => setHintVisible(false), 3200);
+      hintTimer.current = setTimeout(() => setHintVisible(false), 3000);
     }
-    return () => clearTimeout(hintTimerRef.current);
-  }, [cargando, imagenActual]);
+    return () => clearTimeout(hintTimer.current);
+  }, [loading, current]);
 
-  /* ── Navegación ─────────────────────────────────────── */
-  const irA = useCallback((idx) => {
-    setCargando(true);
+  /* Centrar miniatura activa en el strip */
+  useEffect(() => {
+    if (!thumbRef.current) return;
+    const active = thumbRef.current.querySelector('[data-active="true"]');
+    active?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }, [current]);
+
+  const goTo = useCallback((idx) => {
+    setLoading(true);
     setHintVisible(false);
-    setImagenActual(idx);
-    setThumbOpen(false);
+    setCurrent(idx);
   }, []);
 
-  const anterior = useCallback(() => irA((imagenActual - 1 + total) % total), [imagenActual, total, irA]);
-  const siguiente = useCallback(() => irA((imagenActual + 1) % total), [imagenActual, total, irA]);
-
-  /* ── Swipe táctil ───────────────────────────────────── */
-  const touchStartX = useRef(null);
-  const onTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
-  const onTouchEnd   = (e) => {
-    if (touchStartX.current === null) return;
-    const dx = e.changedTouches[0].clientX - touchStartX.current;
-    if (Math.abs(dx) > 60) { dx < 0 ? siguiente() : anterior(); }
-    touchStartX.current = null;
-  };
+  const prev = useCallback(() => goTo((current - 1 + total) % total), [current, total, goTo]);
+  const next = useCallback(() => goTo((current + 1) % total), [current, total, goTo]);
 
   if (!imagen) return null;
 
-  /* ── Render ─────────────────────────────────────────── */
   return (
     <>
-      {/* ── Fuentes ── */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Sans:wght@300;400;500&display=swap');
-
-        .tour360-root {
-          font-family: 'DM Sans', sans-serif;
-          --gold: #c9a84c;
-          --gold-light: #e8c97a;
-          --gold-dim: rgba(201,168,76,.18);
-          --dark: #08080d;
-          --glass: rgba(8,8,13,.72);
-          --border: rgba(201,168,76,.22);
-        }
-
-        .tour360-root .psv-container { background: #08080d !important; }
-        .tour360-root .psv-navbar    { display: none !important; }
-
-        /* Hint fade */
-        @keyframes t360FadeUp {
-          from { opacity:0; transform: translateX(-50%) translateY(10px); }
-          to   { opacity:1; transform: translateX(-50%) translateY(0); }
-        }
-        .hint-enter  { animation: t360FadeUp .45s ease forwards; }
-        .hint-exit   { opacity:0; transition: opacity .5s ease; }
-
-        /* Spinner ring */
-        @keyframes t360Spin { to { transform: rotate(360deg); } }
-        .t360-spin { animation: t360Spin 1.1s linear infinite; }
-
-        /* Thumb strip slide */
-        @keyframes t360SlideUp {
-          from { transform: translateY(100%); }
-          to   { transform: translateY(0); }
-        }
-        .thumb-open  { animation: t360SlideUp .3s ease forwards; }
-        .thumb-close { transform: translateY(100%); }
-
-        /* Flecha pulse */
-        @keyframes t360Pulse { 0%,100%{opacity:.7} 50%{opacity:1} }
-        .t360-arrow-pulse { animation: t360Pulse 2.5s ease-in-out infinite; }
-
-        /* Active scale */
-        .t360-btn:active { transform: scale(.93); }
-
-        /* Dot active */
-        .t360-dot-active {
-          background: var(--gold) !important;
-          width: 18px !important;
-          border-radius: 4px !important;
-        }
-      `}</style>
+      <style>{CSS}</style>
 
       <div
-        className="tour360-root fixed inset-0 flex flex-col"
-        style={{ zIndex: 9999, background: 'var(--dark)' }}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
+        className="t360"
+        style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          display: 'flex', flexDirection: 'column',
+          background: 'var(--dark)',
+        }}
       >
-
-        {/* ════════════════════════════════════════════════
-            HEADER
-        ════════════════════════════════════════════════ */}
+        {/* ══ HEADER ══════════════════════════════════════════ */}
         <header
+          className="t360-header"
           style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '9px 12px', flexShrink: 0,
             background: 'var(--glass)',
-            borderBottom: '1px solid var(--border)',
-            backdropFilter: 'blur(18px)',
-            WebkitBackdropFilter: 'blur(18px)',
-            flexShrink: 0,
+            borderBottom: '1px solid var(--gold-border)',
+            backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
           }}
-          className="relative z-50 flex items-center gap-3 px-3 py-2.5 sm:px-5 sm:py-3"
         >
-          {/* Botón regresar */}
-          <button
-            onClick={onClose}
-            className="t360-btn flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
-            style={{
-              border: '1px solid var(--border)',
-              color: 'var(--gold-light)',
-              background: 'rgba(201,168,76,.08)',
-              flexShrink: 0,
-              minWidth: 40,
-            }}
-            aria-label="Regresar"
-          >
-            <span style={{ width: 16, height: 16, display:'inline-flex', flexShrink:0 }}>
+          <button className="t360-btn-back" onClick={onClose} aria-label="Regresar">
+            <span style={{ width: 16, height: 16, display: 'flex', flexShrink: 0 }}>
               <IcoBack />
             </span>
-            <span className="hidden sm:inline">Regresar</span>
+            <span className="t360-back-text">Regresar</span>
           </button>
 
-          {/* Título */}
-          <div className="flex-1 min-w-0 text-center">
-            <p
-              className="text-xs tracking-[.18em] uppercase truncate"
-              style={{ color: 'var(--gold)', fontFamily: "'DM Sans', sans-serif", letterSpacing: '.18em' }}
-            >
+          <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
+            <div style={{
+              fontSize: 9, letterSpacing: '.22em', textTransform: 'uppercase',
+              color: 'var(--gold)', marginBottom: 2, lineHeight: 1,
+            }}>
               Tour Virtual 360°
-            </p>
-            <p
-              className="truncate text-sm sm:text-base font-light mt-0.5"
-              style={{ fontFamily: "'Cormorant Garamond', serif", color: 'rgba(255,255,255,.85)', lineHeight: 1.2 }}
-            >
+            </div>
+            <div style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: 15, fontWeight: 400, color: 'var(--text)',
+              lineHeight: 1.25, whiteSpace: 'nowrap',
+              overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>
               {nombreHabitacion}
-            </p>
+            </div>
           </div>
 
-          {/* Contador + botón miniaturas */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {total > 1 && (
-              <span
-                className="text-xs font-medium rounded-md px-2.5 py-1"
-                style={{
-                  border: '1px solid var(--border)',
-                  color: 'rgba(255,255,255,.55)',
-                  background: 'rgba(255,255,255,.05)',
-                  minWidth: 44,
-                  textAlign: 'center',
-                }}
-              >
-                {imagenActual + 1} / {total}
-              </span>
-            )}
-            {total > 1 && (
-              <button
-                onClick={() => setThumbOpen(v => !v)}
-                className="t360-btn rounded-lg p-2 sm:hidden transition-colors"
-                style={{
-                  border: '1px solid var(--border)',
-                  color: thumbOpen ? 'var(--gold)' : 'rgba(255,255,255,.5)',
-                  background: thumbOpen ? 'var(--gold-dim)' : 'rgba(255,255,255,.05)',
-                }}
-                aria-label="Ver miniaturas"
-              >
-                <svg viewBox="0 0 20 20" fill="currentColor" style={{ width:16, height:16 }}>
-                  <rect x="2" y="2" width="6" height="6" rx="1"/>
-                  <rect x="12" y="2" width="6" height="6" rx="1"/>
-                  <rect x="2" y="12" width="6" height="6" rx="1"/>
-                  <rect x="12" y="12" width="6" height="6" rx="1"/>
-                </svg>
-              </button>
-            )}
-          </div>
+          {total > 1 ? (
+            <span style={{
+              fontSize: 11, fontWeight: 500, color: 'var(--text-dim)',
+              border: '1px solid var(--gold-border)', background: 'var(--surface)',
+              borderRadius: 6, padding: '4px 9px',
+              flexShrink: 0, minWidth: 34, textAlign: 'center',
+            }}>
+              {current + 1}/{total}
+            </span>
+          ) : (
+            /* placeholder para mantener header centrado */
+            <div style={{ width: 44, flexShrink: 0 }} />
+          )}
         </header>
 
-        {/* ════════════════════════════════════════════════
-            VISOR
-        ════════════════════════════════════════════════ */}
-        <div className="relative flex-1 overflow-hidden" style={{ minHeight: 0 }}>
+        {/* ══ BARRA DE PROGRESO ═══════════════════════════════ */}
+        {total > 1 && (
+          <div style={{ height: 2, background: 'rgba(201,168,76,.1)', flexShrink: 0 }}>
+            <div style={{
+              height: '100%', background: 'var(--gold)',
+              width: `${((current + 1) / total) * 100}%`,
+              transition: 'width .35s ease',
+            }} />
+          </div>
+        )}
 
-          {/* Overlay carga */}
-          {cargando && (
-            <div
-              className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4"
-              style={{ background: 'var(--dark)' }}
-            >
-              {/* Anillo doble */}
-              <div className="relative w-14 h-14 sm:w-16 sm:h-16">
-                <div
-                  className="t360-spin absolute inset-0 rounded-full"
-                  style={{ border: '2px solid rgba(201,168,76,.15)', borderTopColor: 'var(--gold)' }}
-                />
-                <div
-                  className="t360-spin absolute inset-[6px] rounded-full"
-                  style={{
-                    border: '1.5px solid rgba(201,168,76,.08)',
-                    borderBottomColor: 'var(--gold-light)',
-                    animationDirection: 'reverse',
-                    animationDuration: '.7s',
-                  }}
-                />
+        {/* ══ ÁREA DEL VISOR ══════════════════════════════════ */}
+        <div style={{ position: 'relative', flex: 1, overflow: 'hidden', minHeight: 0 }}>
+
+          {/* Visor Three.js */}
+          <div style={{ position: 'absolute', inset: 0 }}>
+            <Visor360
+              key={imagen.ruta}
+              src={toUrl(imagen.ruta)}
+              onReady={() => setLoading(false)}
+              onError={() => setLoading(false)}
+            />
+          </div>
+
+          {/* Overlay de carga */}
+          {loading && (
+            <div style={{
+              position: 'absolute', inset: 0, zIndex: 10,
+              background: 'var(--dark)',
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', gap: 16,
+            }}>
+              <div style={{ position: 'relative', width: 52, height: 52 }}>
+                <div className="t360-spin-a" style={{
+                  position: 'absolute', inset: 0, borderRadius: '50%',
+                  border: '2px solid rgba(201,168,76,.1)',
+                  borderTopColor: 'var(--gold)',
+                }} />
+                <div className="t360-spin-b" style={{
+                  position: 'absolute', inset: 8, borderRadius: '50%',
+                  border: '1.5px solid rgba(201,168,76,.07)',
+                  borderBottomColor: 'rgba(232,201,122,.65)',
+                }} />
               </div>
-              <p
-                className="text-xs tracking-widest uppercase"
-                style={{ color: 'rgba(201,168,76,.6)', letterSpacing: '.2em' }}
-              >
+              <span style={{
+                fontSize: 9, letterSpacing: '.22em', textTransform: 'uppercase',
+                color: 'rgba(201,168,76,.5)',
+              }}>
                 Cargando panorámica
-              </p>
+              </span>
             </div>
           )}
 
-          {/* Visor 360 — Three.js */}
-          <Visor360
-            key={imagen.ruta}
-            src={buildSrc(imagen.ruta)}
-            onReady={() => setCargando(false)}
-            onError={() => setCargando(false)}
-          />
-
-          {/* ── Hint "arrastra" ── */}
-          {!cargando && (
-            <div
-              className={`pointer-events-none absolute bottom-5 left-1/2 z-20 ${hintVisible ? 'hint-enter' : 'hint-exit'}`}
-              style={{ transform: 'translateX(-50%)', whiteSpace: 'nowrap' }}
-            >
-              <div
-                className="flex items-center gap-2 rounded-full px-4 py-2"
-                style={{
-                  background: 'rgba(8,8,13,.7)',
-                  border: '1px solid rgba(201,168,76,.2)',
-                  backdropFilter: 'blur(10px)',
-                }}
-              >
-                <span style={{ width:16, height:16, color:'rgba(201,168,76,.7)', display:'inline-flex' }}>
-                  <IcoDrag />
-                </span>
-                <span className="text-xs" style={{ color: 'rgba(255,255,255,.55)' }}>
-                  Arrastra · Pellizca para zoom
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* ── Flechas laterales (≥ md) ── */}
+          {/* Flechas de navegación (solo desktop) */}
           {total > 1 && (
             <>
               <button
-                onClick={anterior}
-                className="t360-btn t360-arrow-pulse hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-20 w-11 h-11 items-center justify-center rounded-full transition-all"
-                style={{
-                  border: '1px solid var(--border)',
-                  background: 'var(--glass)',
-                  color: 'var(--gold-light)',
-                  backdropFilter: 'blur(12px)',
-                }}
+                className="t360-nav"
+                style={{ left: 14 }}
+                onClick={prev}
                 aria-label="Vista anterior"
               >
-                <span style={{ width:18, height:18 }}><IcoArrowLeft /></span>
+                <span style={{ width: 18, height: 18, display: 'flex' }}><IcoPrev /></span>
               </button>
               <button
-                onClick={siguiente}
-                className="t360-btn t360-arrow-pulse hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-20 w-11 h-11 items-center justify-center rounded-full transition-all"
-                style={{
-                  border: '1px solid var(--border)',
-                  background: 'var(--glass)',
-                  color: 'var(--gold-light)',
-                  backdropFilter: 'blur(12px)',
-                }}
+                className="t360-nav"
+                style={{ right: 14 }}
+                onClick={next}
                 aria-label="Vista siguiente"
               >
-                <span style={{ width:18, height:18 }}><IcoArrowRight /></span>
+                <span style={{ width: 18, height: 18, display: 'flex' }}><IcoNext /></span>
               </button>
             </>
           )}
 
-          {/* ── Dots móvil (< md, sin thumbnails) ── */}
-          {total > 1 && (
-            <div className="md:hidden absolute bottom-16 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 pointer-events-none">
-              {imagenes360.map((_, idx) => (
-                <div
-                  key={idx}
-                  className="rounded-full transition-all duration-300"
-                  style={{
-                    width: idx === imagenActual ? 18 : 6,
-                    height: 6,
-                    background: idx === imagenActual ? 'var(--gold)' : 'rgba(255,255,255,.25)',
-                    borderRadius: idx === imagenActual ? 4 : 999,
-                  }}
-                />
-              ))}
+          {/* Hint "arrastra" */}
+          {!loading && (
+            <div
+              className={hintVisible ? 't360-hint-show' : 't360-hint-hide'}
+              style={{
+                position: 'absolute', bottom: 18, left: '50%',
+                zIndex: 15, whiteSpace: 'nowrap',
+              }}
+            >
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '7px 14px', borderRadius: 20,
+                background: 'rgba(11,11,15,.76)',
+                border: '1px solid rgba(201,168,76,.16)',
+                backdropFilter: 'blur(10px)',
+              }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="rgba(201,168,76,.65)"
+                  strokeWidth={1.5} style={{ width: 14, height: 14, flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="1.5" />
+                  <path d="M7 9l-4 3 4 3M17 9l4 3-4 3" />
+                </svg>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,.48)' }}>
+                  Arrastra para explorar · Pellizca para zoom
+                </span>
+              </div>
             </div>
           )}
         </div>
 
-        {/* ════════════════════════════════════════════════
-            THUMBNAILS — desktop siempre, móvil toggle
-        ════════════════════════════════════════════════ */}
+        {/* ══ STRIP DE MINIATURAS ═════════════════════════════ */}
         {total > 1 && (
-          <>
-            {/* Desktop strip */}
+          <div
+            className="t360-strip-scroll"
+            style={{
+              background: 'var(--glass)',
+              borderTop: '1px solid var(--gold-border)',
+              backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+              flexShrink: 0, overflowX: 'auto',
+            }}
+          >
+            {/* inner row: centra cuando caben, scrollea cuando no */}
             <div
-              className="hidden sm:block flex-shrink-0"
+              ref={thumbRef}
+              className="t360-strip-row"
               style={{
-                background: 'var(--glass)',
-                borderTop: '1px solid var(--border)',
-                backdropFilter: 'blur(18px)',
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '9px 12px',
+                width: 'max-content', minWidth: '100%',
+                boxSizing: 'border-box',
+                justifyContent: 'center',
               }}
             >
-              <div className="flex items-center gap-2.5 overflow-x-auto px-4 py-3 sm:justify-center sm:px-6 scrollbar-thin">
-                {imagenes360.map((img, idx) => (
-                  <ThumbButton
-                    key={idx}
-                    img={img}
-                    idx={idx}
-                    activo={idx === imagenActual}
-                    onClick={() => irA(idx)}
+              {imagenes360.map((img, i) => (
+                <button
+                  key={i}
+                  data-active={i === current}
+                  onClick={() => goTo(i)}
+                  className="t360-thumb"
+                  style={{
+                    border: i === current
+                      ? '2px solid var(--gold)'
+                      : '2px solid rgba(255,255,255,.1)',
+                    opacity: i === current ? 1 : 0.48,
+                    boxShadow: i === current ? '0 0 12px var(--gold-glow)' : 'none',
+                  }}
+                  aria-label={img.titulo || `Vista ${i + 1}`}
+                >
+                  <img
+                    src={toUrl(img.ruta)}
+                    alt={img.titulo || `Vista ${i + 1}`}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    onError={(e) => { e.target.style.background = '#18182a'; }}
                   />
-                ))}
-              </div>
+                  {img.titulo && (
+                    <span style={{
+                      position: 'absolute', inset: '0 0 auto 0', top: 'auto', bottom: 0,
+                      padding: '4px 3px 2px',
+                      background: 'linear-gradient(transparent, rgba(11,11,15,.9))',
+                      fontSize: 8, textAlign: 'center',
+                      color: i === current ? 'rgba(201,168,76,.9)' : 'rgba(255,255,255,.55)',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      display: 'block',
+                    }}>
+                      {img.titulo}
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
-
-            {/* Móvil: panel deslizable */}
-            <div
-              className={`sm:hidden absolute inset-x-0 bottom-0 z-40 ${thumbOpen ? 'thumb-open' : 'thumb-close'}`}
-              style={{
-                background: 'var(--glass)',
-                borderTop: '1px solid var(--border)',
-                backdropFilter: 'blur(18px)',
-                paddingBottom: 'env(safe-area-inset-bottom)',
-              }}
-            >
-              {/* Handle */}
-              <div className="flex justify-center py-2">
-                <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,.2)' }} />
-              </div>
-              <div className="flex items-center gap-2.5 overflow-x-auto px-4 pb-4">
-                {imagenes360.map((img, idx) => (
-                  <ThumbButton
-                    key={idx}
-                    img={img}
-                    idx={idx}
-                    activo={idx === imagenActual}
-                    onClick={() => irA(idx)}
-                  />
-                ))}
-              </div>
-            </div>
-          </>
+          </div>
         )}
       </div>
     </>
   );
 };
-
-/* ── Sub-componente ThumbButton ─────────────────────────── */
-const ThumbButton = ({ img, idx, activo, onClick }) => (
-  <button
-    onClick={onClick}
-    className="t360-btn relative flex-shrink-0 overflow-hidden rounded-lg transition-all duration-200"
-    style={{
-      width: 80, height: 56,
-      border: activo ? '2px solid var(--gold)' : '2px solid rgba(255,255,255,.12)',
-      boxShadow: activo ? '0 0 14px rgba(201,168,76,.35)' : 'none',
-      opacity: activo ? 1 : .55,
-      transform: activo ? 'scale(1.05)' : 'scale(1)',
-    }}
-    aria-label={img.titulo || `Vista ${idx + 1}`}
-  >
-    <img
-      src={buildSrc(img.ruta)}
-      alt={img.titulo || `Vista ${idx + 1}`}
-      className="w-full h-full object-cover"
-      onError={(e) => { e.target.style.background = '#1a1a2e'; }}
-    />
-
-    {/* Overlay dorado activo */}
-    {activo && (
-      <div
-        className="absolute inset-0 flex items-center justify-center"
-        style={{ background: 'rgba(201,168,76,.12)' }}
-      >
-        <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--gold)', boxShadow:'0 0 6px var(--gold)' }} />
-      </div>
-    )}
-
-    {/* Label */}
-    {img.titulo && (
-      <div
-        className="absolute inset-x-0 bottom-0 px-1 py-0.5 text-center truncate"
-        style={{
-          background: 'linear-gradient(transparent, rgba(8,8,13,.85))',
-          fontSize: 9,
-          color: activo ? 'var(--gold-light)' : 'rgba(255,255,255,.7)',
-          fontFamily: "'DM Sans', sans-serif",
-        }}
-      >
-        {img.titulo}
-      </div>
-    )}
-  </button>
-);
 
 export default TourVirtual360;
