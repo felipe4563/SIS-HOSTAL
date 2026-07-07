@@ -27,32 +27,25 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
   const [titulo,         setTitulo]         = useState('Vista 360°');
   const [camActiva,      setCamActiva]      = useState(false);
   const [sinGiroscopio,  setSinGiroscopio]  = useState(false);
+  const [listo,          setListo]          = useState(false);
 
-  // Abrir cámara trasera
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
-          audio: false
-        });
-        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play();
-          setCamActiva(true);
-        }
-      } catch {
-        setError('No se pudo acceder a la cámara. Verifica los permisos del navegador.');
+  const iniciarCamara = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+        setCamActiva(true);
       }
-    })();
-    return () => {
-      cancelled = true;
-      streamRef.current?.getTracks().forEach(t => t.stop());
-    };
-  }, []);
+      setListo(true);
+    } catch {
+      setError('No se pudo acceder a la cámara. Ve a Configuración del navegador y permite el acceso.');
+    }
+  };
 
   // Giroscopio con soporte iOS 13+
   useEffect(() => {
@@ -129,6 +122,53 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
   };
 
   const progreso = Math.min(100, Math.round((fotos.length / 16) * 100));
+
+  // Pantalla previa — pide permisos antes de mostrar el overlay fullscreen
+  if (!listo) {
+    return (
+      <div className="fixed inset-0 z-[300] flex flex-col items-center justify-center bg-gray-900 px-6 text-center">
+        <div className="text-6xl mb-6">📷</div>
+        <h2 className="text-white text-2xl font-bold mb-2">Captura 360°</h2>
+        <p className="text-gray-400 text-sm mb-1">Hab. {habitacion.numero} — {habitacion.tipo_habitacion}</p>
+        <div className="bg-white/5 rounded-2xl p-5 my-6 text-left space-y-3 w-full max-w-sm">
+          <p className="text-white font-medium text-sm mb-2">Antes de empezar:</p>
+          <div className="flex items-start gap-3 text-gray-300 text-sm">
+            <span className="text-xl">🏠</span>
+            <span>Párate en el <strong className="text-white">centro</strong> de la habitación</span>
+          </div>
+          <div className="flex items-start gap-3 text-gray-300 text-sm">
+            <span className="text-xl">🔄</span>
+            <span>Gira <strong className="text-white">lentamente</strong> en círculo completo sin moverte</span>
+          </div>
+          <div className="flex items-start gap-3 text-gray-300 text-sm">
+            <span className="text-xl">✅</span>
+            <span>Espera que cada punto del compass se ponga <strong className="text-white">verde</strong> antes de seguir</span>
+          </div>
+          <div className="flex items-start gap-3 text-gray-300 text-sm">
+            <span className="text-xl">💡</span>
+            <span>Apunta a zonas con <strong className="text-white">muebles o detalles</strong>, no solo paredes lisas</span>
+          </div>
+        </div>
+        {error && (
+          <div className="bg-red-500/20 border border-red-400/40 rounded-xl px-4 py-3 text-red-300 text-sm mb-4 w-full max-w-sm">
+            {error}
+          </div>
+        )}
+        <button
+          onClick={iniciarCamara}
+          className="w-full max-w-sm bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-bold py-4 rounded-2xl text-lg transition-colors"
+        >
+          Activar cámara
+        </button>
+        <button
+          onClick={onClose}
+          className="mt-3 text-gray-500 text-sm py-2"
+        >
+          Cancelar
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[300] flex flex-col bg-black">
