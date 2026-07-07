@@ -1,6 +1,6 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCarrito } from '../../context/CarritoContext';
-import TourVirtual360 from './TourVirtual360';
 
 /* ── Iconos SVG ─────────────────────────────────────────────────────────── */
 const ICON_DEFS = {
@@ -30,8 +30,8 @@ const SvgIcon = ({ name, className = 'h-5 w-5' }) => (
 const HabitacionCard = ({ habitacion, onReservar }) => {
   const [imagenActual, setImagenActual] = useState(0);
   const [mostrandoMensaje, setMostrandoMensaje] = useState(false);
-  const [mostrarTour, setMostrarTour] = useState(false);
 
+  const navigate = useNavigate();
   const { agregarHabitacion, habitaciones } = useCarrito();
 
   const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:4000';
@@ -63,7 +63,12 @@ const HabitacionCard = ({ habitacion, onReservar }) => {
 
   const siguienteImagen = () => setImagenActual((prev) => (prev + 1) % imagenes.length);
   const anteriorImagen = () => setImagenActual((prev) => (prev - 1 + imagenes.length) % imagenes.length);
-  const handleAbrirTour = () => setMostrarTour(true);
+  const handleAbrirTour = () => navigate('/tour360', {
+    state: {
+      imagenes360,
+      nombreHabitacion: `Habitación ${habitacion.numero}`,
+    },
+  });
 
   /* Badge de estado */
   const estadoBadge = {
@@ -74,16 +79,7 @@ const HabitacionCard = ({ habitacion, onReservar }) => {
   const badge = estadoBadge[habitacion.estado] ?? estadoBadge.mantenimiento;
 
   return (
-    <>
-      {mostrarTour && (
-        <TourVirtual360
-          imagenes360={imagenes360}
-          nombreHabitacion={`Habitación ${habitacion.numero}`}
-          onClose={() => setMostrarTour(false)}
-        />
-      )}
-
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+    <div className="bg-white rounded-3xl border border-slate-100 shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
         {/* ── Galería ── */}
         <div className="relative h-56 sm:h-64 bg-gray-200 group">
           <img
@@ -256,7 +252,6 @@ const HabitacionCard = ({ habitacion, onReservar }) => {
           </div>
         </div>
       </div>
-    </>
   );
 };
 

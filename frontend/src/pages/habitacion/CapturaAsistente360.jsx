@@ -5,6 +5,7 @@ const CAPTURE_DIST = 22;   // grados mínimos desde cualquier foto anterior para
 const HOLD_MS      = 500;  // ms quieto antes de capturar
 const MIN_FOTOS    = 12;
 const TARGET_FOTOS = 28;
+const MAX_FOTOS    = 50;   // límite duro (el servidor acepta hasta 60)
 
 const angleDiff = (a, b) => {
   let d = ((a - b) % 360 + 360) % 360;
@@ -127,6 +128,7 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
 
   // ── Capturar foto ────────────────────────────────────────────────────────
   const capturarFoto = useCallback(() => {
+    if (capturedPosRef.current.length >= MAX_FOTOS) return;
     const video  = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
@@ -157,6 +159,7 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
   // ── Auto-captura por movimiento ──────────────────────────────────────────
   useEffect(() => {
     if (!camActiva || !started || procesando) return;
+    if (capturedPosRef.current.length >= MAX_FOTOS) return;
 
     const alpha = getRelAlpha();
     const beta  = orientRef.current.beta;

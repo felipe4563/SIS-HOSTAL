@@ -139,7 +139,7 @@ router.post('/:id/capturar-360',
   authMiddleware,
   initAbility,
   checkAbility('update', 'Habitacion'),
-  uploadTemp.array('fotos[]', 30),
+  uploadTemp.array('fotos[]', 60),
   capturarFotos360
 );
 

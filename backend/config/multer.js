@@ -100,11 +100,11 @@ const storageTemp = multer.diskStorage({
   }
 });
 
-// Hasta 30 fotos, 8 MB cada una
+// Hasta 60 fotos, 8 MB cada una
 export const uploadTemp = multer({
   storage: storageTemp,
   fileFilter: fileFilter,
-  limits: { fileSize: 8 * 1024 * 1024, files: 30 }
+  limits: { fileSize: 8 * 1024 * 1024, files: 60 }
 });
 
 // Middleware para manejar errores de multer
