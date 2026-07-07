@@ -230,7 +230,7 @@ const Reportes = () => {
             <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
               {tienePermiso('reporte.generar') && (
                 <button
-                  onClick={generarReporte}
+                  onClick={() => generarReporte()}
                   disabled={loading || !fechaInicio || !fechaFin}
                   className="px-6 py-2.5 bg-blue-900 hover:bg-blue-800 text-white text-sm font-semibold rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider"
                 >

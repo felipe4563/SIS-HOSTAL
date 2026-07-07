@@ -431,12 +431,14 @@ const Imagenes360Manager = ({ habitacion, onClose, onUpdate }) => {
               ×
             </button>
           </div>
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0" style={{ height: 'calc(100vh - 52px)' }}>
             <ReactPhotoSphereViewer
               src={viewerUrl}
               height="100%"
               width="100%"
               defaultZoomLvl={50}
+              navbar={['zoom', 'move', 'fullscreen']}
+              littlePlanet={false}
             />
           </div>
         </div>
