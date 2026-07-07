@@ -36,16 +36,23 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
         audio: false
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-        setCamActiva(true);
-      }
-      setListo(true);
+      setListo(true); // primero renderiza el <video>, luego el useEffect lo conecta
     } catch {
       setError('No se pudo acceder a la cámara. Ve a Configuración del navegador y permite el acceso.');
     }
   };
+
+  // Conecta el stream al <video> una vez que esté en el DOM
+  useEffect(() => {
+    if (!listo || !streamRef.current) return;
+    const video = videoRef.current;
+    if (!video) return;
+    video.srcObject = streamRef.current;
+    video.play().then(() => setCamActiva(true)).catch(() => {});
+    return () => {
+      streamRef.current?.getTracks().forEach(t => t.stop());
+    };
+  }, [listo]);
 
   // Giroscopio con soporte iOS 13+
   useEffect(() => {
