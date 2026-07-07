@@ -72,8 +72,11 @@ const CapturaAsistente360 = ({ habitacion, onClose, onSuccess }) => {
   useEffect(() => {
     let got = false;
     const handler = (e) => {
-      const o = { alpha: e.alpha ?? 0, beta: e.beta ?? 0 };
-      orientRef.current = o;   // actualización inmediata sin re-render
+      // DeviceOrientation.beta en portrait: ~90° = horizontal, ~55° = apuntando 35° arriba
+      // Convertimos a ángulo de elevación: 0=horizontal, negativo=arriba, positivo=abajo
+      const elevation = (e.beta ?? 90) - 90;
+      const o = { alpha: e.alpha ?? 0, beta: elevation };
+      orientRef.current = o;
       if (!got) { got = true; setSinGiroscopio(false); }
       setOrient(o);
     };
