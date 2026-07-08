@@ -579,8 +579,9 @@ export const eliminarReserva = async (req, res) => {
       return res.status(404).json({ message: 'Reserva no encontrada' });
     }
 
-    // Eliminar pagos asociados primero (FK constraint)
+    // Eliminar registros dependientes sin CASCADE (FK constraint)
     await db.query('DELETE FROM pago WHERE id_reserva = ?', [id]);
+    await db.query('DELETE FROM ocupacion WHERE id_reserva = ?', [id]);
 
     // Eliminar la reserva
     await db.query('DELETE FROM reserva WHERE id_reserva = ?', [id]);
