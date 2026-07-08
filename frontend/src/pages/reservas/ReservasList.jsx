@@ -244,6 +244,12 @@ const ReservasList = ({
                 </div>
 
                 {/* Datos */}
+                {reserva.fecha_creacion && (
+                  <p className="text-xs text-gray-400 mb-3">
+                    Registrada el {formatearFecha(reserva.fecha_creacion)}
+                  </p>
+                )}
+
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                   <div>
                     <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Cliente</p>
@@ -291,6 +297,7 @@ const ReservasList = ({
                     <th className="px-4 lg:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Fechas</th>
                     <th className="px-4 lg:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Noches</th>
                     <th className="px-4 lg:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Total</th>
+                    <th className="px-4 lg:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Registrada</th>
                     <th className="px-4 lg:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Estado</th>
                     {(tienePermiso('reserva.editar') || tienePermiso('reserva.eliminar')) && (
                       <th className="px-4 lg:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Acciones</th>
@@ -320,6 +327,9 @@ const ReservasList = ({
                       </td>
                       <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                         <span className="text-sm font-bold text-green-600">Bs. {parseFloat(reserva.total).toFixed(2)}</span>
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                        <span className="text-xs text-gray-500">{reserva.fecha_creacion ? formatearFecha(reserva.fecha_creacion) : '—'}</span>
                       </td>
                       <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                         {getEstadoBadge(reserva.estado)}

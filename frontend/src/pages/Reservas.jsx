@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, useRef } from "react";
 import {
   obtenerTodasReservas,
   actualizarEstadoReserva,
@@ -56,6 +56,7 @@ const Reservas = () => {
   const [reservaSeleccionada,setReservaSeleccionada]= useState(null);
   const [mostrarModalEstado, setMostrarModalEstado] = useState(false);
   const [confirmPending,     setConfirmPending]     = useState(null);
+  const formRef = useRef(null);
 
   useEffect(() => { cargarDatos(); }, []);
 
@@ -180,7 +181,11 @@ const Reservas = () => {
   };
 
   const openCrearForm = () => { setReservaEditando(null); setMostrarForm(true); };
-  const openEditarForm = (reserva) => { setReservaEditando(reserva); setMostrarForm(true); };
+  const openEditarForm = (reserva) => {
+    setReservaEditando(reserva);
+    setMostrarForm(true);
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
 
   const getEstadoBadge = (estado) => {
     const badges = {
@@ -224,7 +229,7 @@ const Reservas = () => {
       </div>
 
       {mostrarForm && (tienePermiso('reserva.crear') || tienePermiso('reserva.editar')) && (
-        <div className="mb-6">
+        <div className="mb-6" ref={formRef}>
           <ReservaForm
             clientes={clientes}
             habitaciones={habitaciones}
