@@ -17,6 +17,8 @@ const HabitacionesLista = ({ onEdit, onTour360, reload }) => {
   const [busqueda, setBusqueda] = useState("");
 
   const [indicesCarrusel, setIndicesCarrusel] = useState({});
+  const tieneVistaCompleta = tienePermiso("habitacion.vista_completa");
+  const [vista, setVista] = useState(tieneVistaCompleta ? "cards" : "tabla");
 
   const cargarHabitaciones = async () => {
     try {
@@ -152,8 +154,8 @@ const HabitacionesLista = ({ onEdit, onTour360, reload }) => {
           </div>
         </div>
 
-        {/* Filtros */}
-        <div className="flex flex-wrap gap-3">
+        {/* Filtros + toggle de vista */}
+        <div className="flex flex-wrap gap-3 items-center">
           {/* Búsqueda */}
           <div className="relative flex-1 min-w-[200px]">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
@@ -192,20 +194,128 @@ const HabitacionesLista = ({ onEdit, onTour360, reload }) => {
 
           {(filtroEstado || filtroTipo || busqueda) && (
             <button
-              onClick={() => {
-                setFiltroEstado("");
-                setFiltroTipo("");
-                setBusqueda("");
-              }}
+              onClick={() => { setFiltroEstado(""); setFiltroTipo(""); setBusqueda(""); }}
               className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2"
             >
               ✕ Limpiar
             </button>
           )}
+
+          {/* Toggle vista — solo si tiene habitacion.vista_completa */}
+          {tieneVistaCompleta && <div className="flex border border-gray-300 rounded-lg overflow-hidden ml-auto">
+            <button
+              onClick={() => setVista("cards")}
+              title="Vista tarjetas"
+              className={`px-3 py-2.5 transition-colors ${vista === "cards" ? "bg-blue-600 text-white" : "bg-white text-gray-500 hover:bg-gray-100"}`}
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3z"/>
+              </svg>
+            </button>
+            <button
+              onClick={() => setVista("tabla")}
+              title="Vista tabla"
+              className={`px-3 py-2.5 transition-colors ${vista === "tabla" ? "bg-blue-600 text-white" : "bg-white text-gray-500 hover:bg-gray-100"}`}
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm15 2h-4v3h4V4zm0 4h-4v3h4V8zm0 4h-4v3h3a1 1 0 0 0 1-1v-2zm-5 3v-3H6v3h4zm-5 0v-3H1v2a1 1 0 0 0 1 1h3zm-4-4h4V8H1v3zm0-4h4V4H1v3zm5-3v3h4V4H6zm4 4H6v3h4V8z"/>
+              </svg>
+            </button>
+          </div>}
         </div>
       </div>
 
-      {/* Grid de habitaciones */}
+      {/* ══ VISTA TABLA ══════════════════════════════════════════════ */}
+      {vista === "tabla" && habitacionesFiltradas.length > 0 && (
+        <div className="bg-white shadow-md rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">N°</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Tipo</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Piso</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Precio</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Capacidad</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">360°</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Estado</th>
+                  {(tienePermiso('habitacion.editar') || tienePermiso('habitacion.eliminar')) && (
+                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Acciones</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {habitacionesFiltradas.map((h) => {
+                  const tiene360 = h.imagenes_360?.length > 0;
+                  return (
+                    <tr key={h.id_habitacion} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 font-bold text-gray-900">Hab. {h.numero}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{h.tipo_habitacion || '—'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{h.piso ? `Piso ${h.piso}` : '—'}</td>
+                      <td className="px-4 py-3 text-sm font-semibold text-blue-600">Bs. {h.precio_total ?? h.precio_base}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">👥 {h.capacidad}</td>
+                      <td className="px-4 py-3 text-sm">
+                        {tiene360
+                          ? <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs font-semibold">🔄 Sí</span>
+                          : <span className="text-gray-400 text-xs">—</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        {tienePermiso('habitacion.editar') ? (
+                          <select
+                            className={`text-xs px-2 py-1 rounded-lg border font-medium ${badgeStyles[h.estado] || 'border-gray-200'}`}
+                            value={h.estado}
+                            onChange={(e) => handleEstado(h.id_habitacion, e.target.value)}
+                          >
+                            <option value="disponible">✅ Disponible</option>
+                            <option value="ocupada">🔒 Ocupada</option>
+                            <option value="limpieza">🧹 Limpieza</option>
+                          </select>
+                        ) : (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${badgeStyles[h.estado] || 'bg-gray-100'}`}>
+                            {estadoIcons[h.estado]} {h.estado}
+                          </span>
+                        )}
+                      </td>
+                      {(tienePermiso('habitacion.editar') || tienePermiso('habitacion.eliminar')) && (
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {tienePermiso('habitacion.editar') && (
+                              <>
+                                <button
+                                  onClick={() => onEdit(h)}
+                                  className="text-blue-600 hover:text-blue-800 text-lg"
+                                  title="Editar"
+                                >✏️</button>
+                                {onTour360 && (
+                                  <button
+                                    onClick={() => onTour360(h)}
+                                    className="text-purple-600 hover:text-purple-800 text-lg"
+                                    title={tiene360 ? "Ver 360°" : "Agregar 360°"}
+                                  >🔄</button>
+                                )}
+                              </>
+                            )}
+                            {tienePermiso('habitacion.eliminar') && (
+                              <button
+                                onClick={() => handleDelete(h.id_habitacion)}
+                                className="text-red-500 hover:text-red-700 text-lg"
+                                title="Eliminar"
+                              >🗑️</button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ══ VISTA CARDS ══════════════════════════════════════════════ */}
+      {vista === "cards" && (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
         {habitacionesFiltradas.map((h) => {
           const imgs = h.imagenes?.map(img => img.url || img) || [];
@@ -365,6 +475,7 @@ const HabitacionesLista = ({ onEdit, onTour360, reload }) => {
           );
         })}
       </div>
+      )}
 
       {/* Sin resultados */}
       {habitacionesFiltradas.length === 0 && (
