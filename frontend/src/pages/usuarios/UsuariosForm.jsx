@@ -16,16 +16,14 @@ const usuarioSchema = z.object({
   password: z.string().optional(),
   id_rol: z.union([z.string(), z.number()]).refine(val => !!val, "El rol es obligatorio"),
 }).superRefine((data, ctx) => {
-  if (!data.id_usuario && (!data.password || data.password.length < 6)) {
-    // Si es nuevo usuario, password es obligatorio y min 6
+  if (!data.id_usuario && (!data.password || data.password.length < 8)) {
     if (!data.password) {
       ctx.addIssue({ path: ["password"], code: z.ZodIssueCode.custom, message: "La contraseña es obligatoria" });
-    } else if (data.password.length < 6) {
-      ctx.addIssue({ path: ["password"], code: z.ZodIssueCode.custom, message: "Mínimo 6 caracteres" });
+    } else if (data.password.length < 8) {
+      ctx.addIssue({ path: ["password"], code: z.ZodIssueCode.custom, message: "Mínimo 8 caracteres" });
     }
-  } else if (data.id_usuario && data.password && data.password.length < 6) {
-    // Si es edición y escribió password, min 6
-    ctx.addIssue({ path: ["password"], code: z.ZodIssueCode.custom, message: "Mínimo 6 caracteres" });
+  } else if (data.id_usuario && data.password && data.password.length < 8) {
+    ctx.addIssue({ path: ["password"], code: z.ZodIssueCode.custom, message: "Mínimo 8 caracteres" });
   }
 });
 
